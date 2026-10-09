@@ -247,6 +247,45 @@
   .keyrow code{font:14px/1.6 ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace; letter-spacing:.05em; overflow-wrap:anywhere}
   .keyrow .off{font-size:13px; color:var(--faint)}
   .text-danger{display:block; margin:16px auto 0; padding:10px 16px; font-size:14px; font-weight:600; color:var(--ng)}
+  .secondary.wide{width:100%; margin-top:4px}
+
+  /* ---- 解説 ---- */
+  .exhead{display:flex; align-items:center; gap:22px; padding:12px 16px; margin-bottom:12px}
+  .exhead small{display:block; font-size:11.5px; color:var(--sub)}
+  .exhead b{font-size:24px; line-height:1.2}
+  .exmark{margin-left:auto; padding:4px 12px; border-radius:99px; font-size:14px; font-weight:700;
+          background:var(--soft); color:var(--sub); white-space:nowrap}
+  .exmark.ok{background:var(--ok-soft); color:var(--ok)}
+  .exmark.ng{background:var(--ng-soft); color:var(--ng)}
+  .exmark:empty{display:none}
+  .exbody{padding:4px 16px 8px; font-size:15.5px; line-height:1.8}
+  .exbody > * + *{border-top:1px solid var(--line)}
+  .exitem{display:grid; grid-template-columns:1.7em 1fr; gap:2px; padding:12px 0}
+  .exitem.is-ans{margin:0 -10px; padding:12px 10px; border-radius:10px; background:var(--ok-soft); border-top-color:transparent}
+  .exitem.is-ans + *{border-top-color:transparent}
+  .exitem-mark{font-weight:700; color:var(--accent)}
+  .exbody > .exitem.sub{padding:3px 0 3px 1.7em; border-top:0; font-size:14.5px; line-height:1.7}
+  .exitem.sub .exitem-mark{font-weight:400; color:var(--sub)}
+  .exitem.sub + .exitem:not(.sub){margin-top:6px}
+  .extag{display:inline-block; margin-right:6px; padding:0 8px; border-radius:99px; vertical-align:2px;
+         font-size:11.5px; font-weight:700; line-height:1.7; color:var(--card)}
+  .extag.ok{background:var(--ok)}
+  .extag.ng{background:var(--ng)}
+  .exref{display:block; margin-top:2px; text-align:right; font-size:12px; color:var(--accent)}
+  .expara{padding:12px 0}
+  .exnote{margin:12px 0; padding:10px 12px; border-left:3px solid var(--accent); border-radius:0 10px 10px 0;
+          background:var(--accent-soft)}
+  .exbody > .exnote{border-top:0}
+  .extable{padding:12px 0; overflow-x:auto}
+  .extable-title{padding:6px 10px; border:1px solid var(--line); border-bottom:0; background:var(--soft); font-size:14px; font-weight:700}
+  .extable table{width:100%; border-collapse:collapse; font-size:14px; line-height:1.6}
+  .extable td{padding:6px 10px; border:1px solid var(--line); vertical-align:top}
+  .extable td:first-child:not(:only-child){width:1%; white-space:nowrap}
+  .exbody u{text-decoration-color:var(--accent); text-underline-offset:3px}
+  .exnav{position:sticky; bottom:0; display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px;
+         padding:12px 0 calc(12px + env(safe-area-inset-bottom));
+         background:linear-gradient(to bottom, transparent, var(--bg) 30%)}
+
   .sheet-list{margin:10px 0 16px; font-size:14.5px}
   .sheet-list div{display:flex; justify-content:space-between; padding:6px 2px; border-bottom:1px solid var(--line)}
 
@@ -272,8 +311,9 @@
     position:fixed; left:50%; top:calc(12px + env(safe-area-inset-top)); z-index:30;
     transform:translate(-50%, calc(-100% - 24px - env(safe-area-inset-top))); opacity:0;
     transition:transform .25s ease, opacity .25s ease;
-    padding:9px 16px; border-radius:99px; background:var(--ink); color:var(--bg);
-    font-size:14px; font-weight:600; white-space:nowrap; pointer-events:none;
+    width:max-content; max-width:calc(100vw - 32px); padding:9px 16px; border-radius:18px;
+    background:var(--ink); color:var(--bg); text-align:center;
+    font-size:14px; font-weight:600; pointer-events:none;
   }
   #toast.show{transform:translate(-50%, 0); opacity:1}
 
@@ -326,6 +366,58 @@ function saveKey(next) {
   }
   KEY = next;
   HAS_KEY = KEY.some(Boolean);
+  return true;
+}
+
+/* ===== 解説データ =====
+ * 解説の文章も公開リポジトリには平文で置かない。AES-GCM で暗号化した explain.bin だけを置き、
+ * 取り込み用リンクの「ex=…」（鍵）で端末ごとに復号して localStorage に保存する。
+ * explain.bin = IV(12バイト) + 暗号文。中身は { built, items: { '章-問': { answer, blocks: [...] } } }
+ */
+const EX_STORE = 'mhm2026-ex';
+const EXKEY_STORE = 'mhm2026-exkey';
+let EX = loadEx();
+
+function loadEx() {
+  try {
+    const data = JSON.parse(localStorage.getItem(EX_STORE));
+    if (data && data.items && typeof data.items === 'object') return data;
+  } catch (e) { /* 読めなければ未登録として扱う */ }
+  return null;
+}
+
+function getExKey() {
+  try { return localStorage.getItem(EXKEY_STORE); } catch (e) { return null; }
+}
+
+async function fetchExplain(keyText) {
+  if (!(window.crypto && crypto.subtle)) throw new Error('この開き方では解説を読み込めません（https のページで開いてください）');
+  const res = await fetch('explain.bin', { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`解説ファイルを取得できませんでした（${res.status}）`);
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const b64 = keyText.replace(/-/g, '+').replace(/_/g, '/');
+  const raw = Uint8Array.from(atob(b64 + '='.repeat((4 - b64.length % 4) % 4)), ch => ch.charCodeAt(0));
+  const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+  let plain;
+  try {
+    plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.slice(0, 12) }, key, buf.slice(12));
+  } catch (e) {
+    throw new Error('鍵が合わないため、解説を開けませんでした');
+  }
+  const data = JSON.parse(new TextDecoder().decode(plain));
+  if (!data || !data.items || typeof data.items !== 'object') throw new Error('解説ファイルの形式が正しくありません');
+  return data;
+}
+
+function saveEx(data, keyText) {
+  try {
+    localStorage.setItem(EX_STORE, JSON.stringify(data));
+    localStorage.setItem(EXKEY_STORE, keyText);
+  } catch (e) {
+    toast('解説を保存できませんでした');
+    return false;
+  }
+  EX = data;
   return true;
 }
 
@@ -535,18 +627,20 @@ function closeSheet() { const el = $('#sheet'); if (el) el.remove(); }
  *   #/s/ID/q           回答
  *   #/s/ID/list        回答一覧
  *   #/s/ID/grade       ○付け
+ *   #/s/ID/ex/章-問    解説
  *   #/key              正解データ
- *   #key=…             取り込み用リンク。開いたらすぐ #/key に置き換える
+ *   #key=…&ex=…        取り込み用リンク。開いたらすぐ #/key に置き換える
  * 回答画面の中で問題を移るときは履歴を積まない（戻るでその回の画面へ戻れるように）。
  */
 let current = null;          // 開いている回
 let gradeFilter = 'all';
 let advanceTimer = 0;
+let exPos = { c: 0, q: 0 };  // 解説画面で開いている問題
 
 function route() {
-  const [kind, id, page] = location.hash.replace(/^#\/?/, '').split('/');
+  const [kind, id, page, arg] = location.hash.replace(/^#\/?/, '').split('/');
   if (kind === 'key') return { view: 'key' };
-  return kind === 's' && id ? { id, view: page || 'hub' } : { view: 'home' };
+  return kind === 's' && id ? { id, view: page || 'hub', arg } : { view: 'home' };
 }
 
 function nav(hash) {
@@ -572,7 +666,7 @@ function render() {
   closeSheet();
   // 取り込み用リンクで開いたとき。正解をアドレス欄や履歴に残さないよう、先に URL から消す
   let linked = null;
-  if (/^#key=/.test(location.hash)) {
+  if (/^#(key|ex)=/.test(location.hash)) {
     linked = location.hash.slice(1);
     history.replaceState(null, '', '#/key');
   }
@@ -596,6 +690,7 @@ function render() {
   if (r.view === 'q') renderAnswer(s);
   else if (r.view === 'list') renderList(s);
   else if (r.view === 'grade') renderGrade(s);
+  else if (r.view === 'ex') renderEx(r.arg);
   else renderHub(s);
 }
 
@@ -848,6 +943,7 @@ function renderGrade(s) {
     <div class="chips">
       ${chips.map(([k, label]) => `<button class="chip num${f === k ? ' on' : ''}" data-act="filter" data-f="${k}">${label}</button>`).join('')}
     </div>
+    <p class="hint">問題をタップすると解説を開きます。${f === 'all' ? '' : '解説の「次の問題」も、この絞り込みの中で進みます。'}</p>
     ${body || '<div class="empty">該当する問題はありません。</div>'}`;
 }
 
@@ -866,7 +962,7 @@ function gradeCell(s, c, q) {
   const mark = { ok: '○', ng: '×', blank: '－', nokey: String(v) }[st];
   // × の下は「自分の答え→正解」
   const sub = st === 'ok' ? String(v) : st === 'ng' ? `${v}→${k}` : st === 'blank' && k ? `正解${k}` : '';
-  return `<div class="acell ${st}"><small>${q + 1}</small><b>${mark}</b>${sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
+  return `<button class="acell ${st}" data-act="openEx" data-c="${c}" data-q="${q}"><small>${q + 1}</small><b>${mark}</b>${sub ? `<span class="sub">${sub}</span>` : ''}</button>`;
 }
 
 function gradeChapter(s, c, r, f) {
@@ -885,8 +981,89 @@ function gradeChapter(s, c, r, f) {
   return cells ? `<section class="card ch">${head}<div class="lgrid">${cells}</div></section>` : '';
 }
 
+/* ===== 解説 ===== */
+const CIRCLED = { '①': 1, '②': 2, '③': 3, '④': 4 };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const rich = s => esc(s).replace(/__(.+?)__/g, '<u>$1</u>');   // __語句__ は下線
+
+// 解説の「前の問題／次の問題」で進む順番。○付け画面の絞り込みに合わせる
+function exList(s) {
+  const list = [];
+  CHAPTERS.forEach((n, c) => {
+    for (let q = 0; q < n; q++) if (gradeFilter === 'all' || status(s, c, q) === gradeFilter) list.push([c, q]);
+  });
+  return list;
+}
+
+function renderEx(arg) {
+  const m = /^(\d+)-(\d+)$/.exec(arg || '');
+  const c = m ? Number(m[1]) - 1 : -1, q = m ? Number(m[2]) - 1 : -1;
+  exPos = c >= 0 && c < CHAPTERS.length && q >= 0 && q < CHAPTERS[c] ? { c, q } : { c: 0, q: 0 };
+  view.innerHTML = '<div id="exView"></div>';
+  paintEx();
+}
+
+function paintEx() {
+  const s = current, { c, q } = exPos;
+  const v = s.answers[c][q], k = KEY[c] ? KEY[c][q] : 0, st = status(s, c, q);
+  const e = EX && EX.items[`${c + 1}-${q + 1}`];
+  const list = exList(s), i = list.findIndex(([a, b]) => a === c && b === q);
+  const where = gradeFilter !== 'all' && i >= 0 ? ` · ${gradeFilter === 'ng' ? '× だけ' : '未回答'} ${i + 1}/${list.length}` : '';
+  $('#exView').innerHTML = `
+    ${bar(`第${c + 1}章　第${q + 1}問`, `${fmtMD(dateOf(s))}の記録${where}`)}
+    <section class="card exhead">
+      <div><small>あなたの答え</small><b class="num">${v || '－'}</b></div>
+      <div><small>正解</small><b class="num">${k || '－'}</b></div>
+      <span class="exmark ${st}">${{ ok: '○ 正解', ng: '× 不正解', blank: '未回答', nokey: '' }[st]}</span>
+    </section>
+    ${e ? `<article class="card exbody">${e.blocks.map(b => exBlock(b, k, v)).join('')}</article>` : `
+      <section class="card notice">
+        <b>解説データがまだ登録されていません</b>
+        <p>解説つきの取り込み用リンク（…&amp;ex=…）を「正解データ」画面に貼り付けると読み込めます。</p>
+        <button class="secondary" data-act="toKey">正解データ画面へ</button>
+      </section>`}
+    <nav class="exnav">
+      <button class="nav-btn" data-act="exPrev"${i > 0 ? '' : ' disabled'}>${ICON.back}前の問題</button>
+      <button class="nav-btn" data-act="exNext"${i >= 0 && i < list.length - 1 ? '' : ' disabled'}>次の問題${ICON.next}</button>
+    </nav>`;
+}
+
+function exBlock(b, k, v) {
+  const ref = b.ref ? `<span class="exref">▶ ${esc(b.ref)}</span>` : '';
+  if (b.type === 'item' && b.level === 2) {
+    // 選択肢の説明の中の箇条書き。選択肢と同じ ①② が使われていても、正解の印は付けない
+    return `<div class="exitem sub"><span class="exitem-mark">${esc(b.mark)}</span><div>${rich(b.text)}${ref}</div></div>`;
+  }
+  if (b.type === 'item') {
+    const n = CIRCLED[b.mark];
+    const tag = n && n === k ? '<span class="extag ok">正解</span>'
+              : n && n === v ? '<span class="extag ng">あなたの答え</span>' : '';
+    // 先頭の「適切である。」「不適切である。」を太字に
+    const text = rich(b.text).replace(/^((?:出題時点では)?(?:不適切|適切)である。)/, '<b>$1</b>');
+    return `<div class="exitem${n && n === k ? ' is-ans' : ''}"><span class="exitem-mark">${esc(b.mark)}</span><div>${tag}${text}${ref}</div></div>`;
+  }
+  if (b.type === 'note') return `<div class="exnote">${rich(b.text)}${ref}</div>`;
+  if (b.type === 'table') {
+    const rows = (b.rows || []).map(r => `<tr>${r.map(x => `<td>${rich(x)}</td>`).join('')}</tr>`).join('');
+    return `<div class="extable">${b.title ? `<div class="extable-title">${rich(b.title)}</div>` : ''}<table>${rows}</table>${ref}</div>`;
+  }
+  return `<p class="expara">${rich(b.text)}${ref}</p>`;
+}
+
+function moveEx(d) {
+  const list = exList(current);
+  const i = list.findIndex(([a, b]) => a === exPos.c && b === exPos.q);
+  const t = list[i + d];
+  if (i < 0 || !t) return;
+  exPos = { c: t[0], q: t[1] };
+  history.replaceState(history.state, '', `#/s/${current.id}/ex/${t[0] + 1}-${t[1] + 1}`);
+  paintEx();
+  window.scrollTo(0, 0);
+}
+
 /* ===== 正解データ ===== */
 let pendingKey = null;   // 読み取って、登録の確認を待っている正解
+let pendingEx = null;    // 読み取った解説の鍵
 
 // 10問ずつ区切って表示（正解不明は -）
 const keyGroups = a => a.map(v => v || '-').join('').replace(/(.{10})(?=.)/g, '$1 ');
@@ -911,7 +1088,38 @@ function renderKey() {
         </div>`).join('')}
     </section>
     ${HAS_KEY ? '<button class="text-danger" data-act="clearKey">正解データを削除する</button>' : ''}
-    <p class="foot">正解データはこの端末のブラウザにだけ保存され、どこにも送信されません。</p>`;
+    <h2 class="sec">解説</h2>
+    <section class="card ch">
+      <div class="ch-head"><b>解説データ</b><span class="num">${EX ? `${Object.keys(EX.items).length}問 登録済み` : '未登録'}</span></div>
+      <p class="key-help">${EX ? '○付け画面で問題をタップすると解説を開けます。'
+        : '解説つきの取り込み用リンク（…&amp;ex=…）を上の欄に貼り付けると、解説も一緒に読み込みます（通信が必要です）。'}</p>
+      ${getExKey() ? '<button class="secondary wide" data-act="reloadEx">解説を読み込み直す</button>' : ''}
+    </section>
+    ${EX ? '<button class="text-danger" data-act="clearEx">解説データを削除する</button>' : ''}
+    <p class="foot">正解データと解説は、この端末のブラウザにだけ保存されます。</p>`;
+}
+
+async function importEx(keyText) {
+  toast('解説を読み込んでいます…');
+  try {
+    const data = await fetchExplain(keyText);
+    if (!saveEx(data, keyText)) return;
+    toast(`解説を読み込みました（${Object.keys(data.items).length}問）`);
+  } catch (e) {
+    toast(e.message);
+  }
+  if (route().view === 'key') renderKey();
+}
+
+// 起動時: 解説の鍵があれば、新しい解説ファイルが出ていないかを裏で確かめる
+async function refreshEx() {
+  const k = getExKey();
+  if (!k || navigator.onLine === false) return;
+  try {
+    const data = await fetchExplain(k);
+    if (EX && data.built === EX.built) return;
+    if (saveEx(data, k) && route().view === 'ex') paintEx();
+  } catch (e) { /* 通信できないときなどは手元の解説のまま */ }
 }
 
 /* ===== 操作 ===== */
@@ -946,10 +1154,14 @@ const actions = {
   },
   toKey: () => nav('#/key'),
   readKey() {
-    const r = parseKey($('#keyText').value);
+    const text = $('#keyText').value;
+    const ex = text.match(/(?:^|[#&?\s])ex=([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/);
+    // 解説の鍵だけのリンク（key= がない）は、正解は読まない
+    const r = ex && !/key=/.test(text) ? { chapters: null } : parseKey(text);
     $('#keyErr').textContent = r.error || '';
     pendingKey = r.error ? null : r.chapters;
-    if (!pendingKey) return;
+    pendingEx = r.error || !ex ? null : ex[1];
+    if (!pendingKey && !pendingEx) return;
     const label = (a, c) => {
       if (!a) return KEY[c] ? '変更なし' : '未登録のまま';
       const unknown = a.filter(v => !v).length;
@@ -958,7 +1170,8 @@ const actions = {
     openSheet(`
       <h2>この内容で登録しますか？</h2>
       <div class="sheet-list">
-        ${pendingKey.map((a, c) => `<div><span>第${c + 1}章</span><span class="num">${label(a, c)}</span></div>`).join('')}
+        ${pendingKey ? pendingKey.map((a, c) => `<div><span>第${c + 1}章</span><span class="num">${label(a, c)}</span></div>`).join('') : ''}
+        ${pendingEx ? '<div><span>解説</span><span>読み込む（通信します）</span></div>' : ''}
       </div>
       <div class="btns">
         <button class="primary" data-act="applyKey">登録する</button>
@@ -966,14 +1179,30 @@ const actions = {
       </div>`);
   },
   applyKey() {
-    if (!pendingKey) return;
-    const next = KEY.map((a, c) => pendingKey[c] || a);
-    pendingKey = null;
+    const nextKey = pendingKey && KEY.map((a, c) => pendingKey[c] || a), ex = pendingEx;
+    pendingKey = pendingEx = null;
     closeSheet();
-    if (!saveKey(next)) return;
+    if (nextKey) {
+      if (!saveKey(nextKey)) return;
+      toast('正解データを登録しました');
+    }
     renderKey();
-    toast('正解データを登録しました');
+    if (ex) importEx(ex);
   },
+  reloadEx() {
+    const k = getExKey();
+    if (k) importEx(k);
+  },
+  clearEx() {
+    if (!confirm('読み込んだ解説を削除します。よろしいですか？\n（回答の記録と正解データは消えません）')) return;
+    try { localStorage.removeItem(EX_STORE); localStorage.removeItem(EXKEY_STORE); } catch (e) { /* 無視 */ }
+    EX = null;
+    renderKey();
+    toast('解説データを削除しました');
+  },
+  openEx: el => nav(`#/s/${current.id}/ex/${Number(el.dataset.c) + 1}-${Number(el.dataset.q) + 1}`),
+  exPrev: () => moveEx(-1),
+  exNext: () => moveEx(1),
   clearKey() {
     if (!confirm('登録されている正解データを削除します。よろしいですか？\n（回答の記録は消えません）')) return;
     if (saveKey(CHAPTERS.map(() => null))) { renderKey(); toast('正解データを削除しました'); }
@@ -1016,6 +1245,14 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if ($('#sheet')) { if (e.key === 'Escape') closeSheet(); return; }
+  if (route().view === 'ex' && current) {
+    if (e.key === 'ArrowLeft') moveEx(-1);
+    else if (e.key === 'ArrowRight') moveEx(1);
+    else if (e.key === 'Escape') actions.back();
+    else return;
+    e.preventDefault();
+    return;
+  }
   if (route().view !== 'q' || !current) return;
   if (/^[1-4]$/.test(e.key)) choose(Number(e.key));
   else if (e.key === 'ArrowRight') goNext();
@@ -1028,6 +1265,7 @@ document.addEventListener('keydown', e => {
 
 history.scrollRestoration = 'manual';
 render();
+refreshEx();
 </script>
 </body>
 </html>
