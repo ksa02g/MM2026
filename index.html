@@ -23,6 +23,7 @@
     --line:#dce4e1; --soft:#ebf1ef;
     --accent:#23796a; --accent-ink:#ffffff; --accent-soft:#dbeee8;
     --ok:#1f8a4c; --ok-soft:#e0f3e7; --ng:#c8433a; --ng-soft:#fbe7e4; --warn:#c08412;
+    --pen:#d7332a;
     --shadow:0 1px 2px rgba(18,44,38,.06), 0 6px 18px rgba(18,44,38,.07);
     --r:16px;
   }
@@ -32,6 +33,7 @@
       --line:#2a3632; --soft:#1f2925;
       --accent:#4cb59f; --accent-ink:#06201a; --accent-soft:#1c3630;
       --ok:#5cc485; --ok-soft:#173326; --ng:#f07468; --ng-soft:#3a1d1a; --warn:#e0a93c;
+      --pen:#ff6f61;
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.25);
     }
   }
@@ -184,6 +186,82 @@
     .choices{flex:1; min-height:0; height:auto}
     .qnav{margin-top:8px}
     .nav-btn{height:44px}
+  }
+
+  /* ---- 問題文（紙面）と手書きメモ ----
+   * 紙面は幅を固定（--paper-w）して組み、画面の幅に合わせて拡大・縮小する。
+   * 画面の幅や向きが変わっても文字の位置が変わらないので、手書きメモがずれない */
+  .ans.has-paper .choices{height:clamp(60px, 10vh, 88px); height:clamp(60px, 10dvh, 88px)}
+  .ans.has-paper .choice{font-size:clamp(28px, 8vw, 40px); border-radius:16px}
+  .ans.has-paper .cell{height:40px}
+  .ans.has-paper .strip{margin-bottom:10px}
+  .qarea{position:relative; flex:1; min-height:0; margin:2px -4px 10px}
+  .qscroll{position:absolute; inset:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+           border-radius:14px; background:var(--card); border:1.5px solid var(--line); scrollbar-gutter:stable}
+  .qscroll .qsizer{animation:fade .18s ease-out}
+  .qarea.inking .qscroll{border-color:var(--pen)}
+  .qcard{margin-bottom:12px; overflow:hidden}
+  .qsizer{position:relative; margin:0 auto}
+  .paper{position:absolute; left:0; top:0; width:344px; transform-origin:0 0; padding:12px 14px 16px;
+         font-size:15px; line-height:1.7; overflow-wrap:anywhere}
+  .qarea .paper{padding-bottom:64px}   /* 右下のペンのボタンに隠れないように */
+  .pp-head{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+  .pp-head b{padding:1px 10px; border-radius:8px; background:var(--ink); color:var(--card); font-size:14px; letter-spacing:.04em}
+  .pp-head span{margin-left:auto; font-size:11px; color:var(--faint); text-align:right; line-height:1.4}
+  .pp-stem{padding:9px 12px; border-radius:10px; background:var(--soft); font-weight:600; line-height:1.65}
+  .pp-stem u, .pp-body u, .pp-choices u{text-decoration-thickness:1.5px; text-underline-offset:3px}
+  .pp-body{margin-top:8px}
+  .pp-item{display:grid; grid-template-columns:1.6em 1fr; padding:4px 0}
+  .pp-mark{font-weight:700; color:var(--accent)}
+  .pp-para{margin:6px 0; text-indent:1em}
+  .pp-choices{margin-top:8px; padding-top:6px; border-top:1px dashed var(--line)}
+  .pp-choices .pp-item{margin:0 -8px; padding:5px 8px; border-radius:8px}
+  .pp-cells{display:grid; gap:1px}
+  .pp-lab{display:inline-block; min-width:1.4em; margin-right:.4em; text-align:center; font-weight:700; color:var(--sub)}
+  .qblank{display:inline-block; min-width:2em; margin:0 .15em; padding:0 .3em; border:1.5px solid var(--sub); border-radius:4px;
+          text-align:center; font-weight:700; font-size:.9em; line-height:1.35; text-indent:0}
+  .pp-lab .qblank{margin:0}
+  .pp-grid{border-collapse:collapse; margin:0 -8px}
+  .pp-grid th, .pp-grid td{padding:3px 9px; text-align:center; white-space:nowrap}
+  .pp-grid thead th{font-size:13px; color:var(--sub)}
+  .pp-grid tbody th{color:var(--accent); text-align:left}
+  .pp-grid td.pp-x{font-size:1.3em; line-height:1.3}   /* × は ○ より小さく見えるので大きめに */
+  .pp-grid tbody tr > *:first-child{border-radius:8px 0 0 8px}
+  .pp-grid tbody tr > *:last-child{border-radius:0 8px 8px 0}
+  .pp-table{width:100%; margin:6px 0; border-collapse:collapse; font-size:13.5px; line-height:1.55}
+  .pp-table th, .pp-table td{padding:5px 7px; border:1px solid var(--line); vertical-align:top; text-align:left}
+  .pp-table th{background:var(--soft); font-weight:600}
+  .pp-table caption{padding:0 0 4px; font-weight:700; text-align:left}
+  .pp-figure{margin:8px 0}
+  .pp-figure svg{width:100%; height:auto; overflow:visible}
+  .pp-none{padding:40px 0; text-align:center; color:var(--faint); font-size:14px}
+  /* 自分の答え（回答画面）・正解と× （解説画面） */
+  .pp-choices .picked{background:var(--accent-soft)}
+  .pp-choices .is-ok{background:var(--ok-soft)}
+  .pp-choices .is-ng{background:var(--ng-soft)}
+  .ink{position:absolute; left:0; top:0; width:100%; height:100%; overflow:visible; pointer-events:none}
+  .ink path{fill:none; stroke:var(--pen); stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round}
+  .inking .paper{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none}
+  .inking .ink{pointer-events:auto; touch-action:none; cursor:crosshair}
+  .inkbar{position:absolute; right:8px; bottom:8px; z-index:2; display:flex; gap:2px; padding:3px; border-radius:99px;
+          background:var(--card); border:1px solid var(--line); box-shadow:var(--shadow)}
+  .inkbar button{position:relative; width:42px; height:42px; display:grid; place-items:center; border-radius:50%; color:var(--sub)}
+  .inkbar button:active{background:var(--soft)}
+  .inkbar button.on{background:var(--pen); color:#fff}
+  .inkbar svg{width:21px; height:21px}
+  .inkbar .more{display:none}
+  .inking .inkbar .more{display:grid}
+  .ink-dot{position:absolute; top:7px; right:7px; width:7px; height:7px; border-radius:50%; background:var(--pen)}
+  .inking .ink-dot{display:none}
+  /* 横向きの背の低い画面では、左に問題・右に回答ボタン */
+  @media (max-height:560px) and (orientation:landscape){
+    .ans.has-paper{max-width:1000px; display:grid; column-gap:14px;
+                   grid-template-columns:minmax(0, 1.35fr) minmax(220px, 1fr); grid-template-rows:auto auto minmax(0, 1fr) auto}
+    .ans.has-paper > .bar{grid-column:1 / -1}
+    .ans.has-paper .qarea{grid-column:1; grid-row:2 / 5; margin:0 0 0 -4px}
+    .ans.has-paper .strip{grid-column:2; grid-row:2}
+    .ans.has-paper .choices{grid-column:2; grid-row:3; height:auto; min-height:0}
+    .ans.has-paper .qnav{grid-column:2; grid-row:4}
   }
 
   /* ---- 回答一覧・○付け ---- */
@@ -593,6 +671,9 @@ const ICON = {
   plus: svg('<path d="M12 5v14M5 12h14"/>'),
   play: svg('<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>'),
   trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>'),
+  pen: svg('<path d="M4 20l1.2-4.6L15.8 4.8a2.1 2.1 0 0 1 3 0l.4.4a2.1 2.1 0 0 1 0 3L8.6 18.8z"/><path d="M13.5 7l3.5 3.5"/>'),
+  eraser: svg('<path d="M9 20h11"/><path d="M4.6 14.6l8.2-8.2a2 2 0 0 1 2.8 0l2.9 2.9a2 2 0 0 1 0 2.8L11 19.6H8.4l-3.8-3.8a.9.9 0 0 1 0-1.2z"/><path d="M8.5 10.7l5.2 5.2"/>'),
+  undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
 };
 
 function bar(title, sub, right = '<span class="icon-btn"></span>') {
@@ -786,16 +867,321 @@ function blockButton(s, c, b) {
   </button>`;
 }
 
+/* ===== 問題文と手書きメモ =====
+ * 問題文は解説と同じ explain.bin に入っている（items['章-問'].question）。
+ * 紙面は幅 PAPER_W で組み、表示する場所の幅に合わせて拡大・縮小する。
+ * 手書きメモは紙面の座標で、回ごと・問題ごとに localStorage（mhm2026-ink-回のID）へ保存する。
+ */
+const PAPER_W = 344;   // 紙面の幅（CSS の .paper と同じ）
+const TEXT_EM = 21;    // 紙面の本文の幅（全角の文字数）。組合せの選択肢を表にできるかの判断に使う
+const CHOICE_N = { '①': 1, '②': 2, '③': 3, '④': 4 };
+
+const questionOf = (c, q) => (EX && EX.items[`${c + 1}-${q + 1}`] || {}).question || null;
+const hasQuestions = () => !!(EX && Object.values(EX.items).some(it => it.question));
+
+// __語句__ は下線、［ア］は空欄の枠
+const qrich = s => esc(s).replace(/__(.+?)__/g, '<u>$1</u>')
+  .replace(/［\s*([^\s］]*)\s*］/g, (_, k) => `<span class="qblank">${k || '　'}</span>`);
+// 文字列の幅の目安（全角 1 文字 = 1）
+const emw = s => [...String(s)].reduce((n, ch) => n + (/[\x20-\x7e]/.test(ch) ? .55 : 1), 0);
+
+function paperHTML(c, q) {
+  const Q = questionOf(c, q);
+  if (!Q) return `<div class="pp-head"><b>第${q + 1}問</b></div><p class="pp-none">この問題の問題文はありません</p>`;
+  const meta = [Q.kai, Q.ref && `公式テキスト ${Q.ref}`].filter(Boolean).map(esc).join('<br>');
+  return `
+    <div class="pp-head"><b>第${q + 1}問</b>${meta ? `<span>${meta}</span>` : ''}</div>
+    <p class="pp-stem">${qrich(Q.stem)}</p>
+    ${Q.body && Q.body.length ? `<div class="pp-body">${Q.body.map(bodyBlock).join('')}</div>` : ''}
+    <div class="pp-choices">${choicesHTML(Q.choices || [])}</div>`;
+}
+
+function bodyBlock(b) {
+  if (b.type === 'stmt') return `<div class="pp-item"><span class="pp-mark">${esc(b.mark)}</span><div>${qrich(b.text)}</div></div>`;
+  if (b.type === 'table') {
+    const head = b.head ? `<thead><tr>${b.head.map(x => `<th>${qrich(x)}</th>`).join('')}</tr></thead>` : '';
+    const rows = (b.rows || []).map(r => `<tr>${r.map(x => `<td>${qrich(x)}</td>`).join('')}</tr>`).join('');
+    return `<table class="pp-table">${b.title ? `<caption>${qrich(b.title)}</caption>` : ''}${head}<tbody>${rows}</tbody></table>`;
+  }
+  // 図は書き起こしのときに SVG で作り直したもの（explain.bin の中身なので、そのまま埋め込む）
+  if (b.type === 'figure') return `<div class="pp-figure">${b.svg || ''}</div>`;
+  return `<p class="pp-para">${qrich(b.text)}</p>`;
+}
+
+// 組合せの選択肢（cells）は、紙面の幅に収まれば見出しつきの表に、収まらなければ語句を縦に並べる
+function choicesHTML(choices) {
+  const lab = k => /^[A-Za-z]$/.test(k) ? esc(k) : `<span class="qblank">${esc(k)}</span>`;
+  const labels = choices.length && choices.every(ch => ch.cells) ? choices[0].cells.map(x => x[0]) : null;
+  const aligned = labels && choices.every(ch => ch.cells.length === labels.length && ch.cells.every((x, i) => x[0] === labels[i]));
+  if (aligned) {
+    const width = 2.2 + labels.reduce((n, k, i) => n + 1.2 + Math.max(emw(k) + .6, ...choices.map(ch => emw(ch.cells[i][1]))), 0);
+    if (width <= TEXT_EM) {
+      return `<table class="pp-grid">
+        <thead><tr><th></th>${labels.map(k => `<th>${lab(k)}</th>`).join('')}</tr></thead>
+        <tbody>${choices.map(ch => `<tr data-n="${CHOICE_N[ch.mark] || ''}"><th>${esc(ch.mark)}</th>${
+          ch.cells.map(x => `<td${x[1] === '×' ? ' class="pp-x"' : ''}>${qrich(x[1])}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>`;
+    }
+  }
+  return choices.map(ch => `<div class="pp-item" data-n="${CHOICE_N[ch.mark] || ''}"><span class="pp-mark">${esc(ch.mark)}</span>${
+    ch.cells ? `<div class="pp-cells">${ch.cells.map(x => `<div><span class="pp-lab">${lab(x[0])}</span>${qrich(x[1])}</div>`).join('')}</div>`
+             : `<div>${qrich(ch.text)}</div>`}</div>`).join('');
+}
+
+// host の幅に合わせて紙面を拡大・縮小する。表示する紙面は1つだけなので、監視も1つ
+let paperRO = null;
+function mountPaper(host, c, q, max = 1.4) {
+  if (paperRO) paperRO.disconnect();
+  host.innerHTML = `<div class="qsizer"><div class="paper">${paperHTML(c, q)}<svg class="ink" aria-hidden="true"></svg></div></div>`;
+  const sizer = host.firstElementChild, paper = sizer.firstElementChild;
+  const fit = () => {
+    const w = host.clientWidth;
+    if (!w) return;
+    // 横向きなど背の低い表示枠では、拡大しすぎると数行しか見えないので控えめに（余った幅は左右の余白に）
+    const short = host.classList.contains('qscroll') && host.clientHeight < 480;
+    const s = Math.min(Math.max(w / PAPER_W, .75), short ? 1.1 : max);
+    paper.style.transform = `scale(${s})`;
+    sizer.style.width = `${PAPER_W * s}px`;
+    sizer.style.height = `${paper.offsetHeight * s}px`;
+  };
+  fit();
+  if (window.ResizeObserver) {
+    paperRO = new ResizeObserver(fit);
+    paperRO.observe(host);
+    paperRO.observe(paper);
+  }
+  return paper;
+}
+
+const INK_STORE = 'mhm2026-ink-';
+let inkBook = { id: null, data: {} };   // 開いている回のメモ { '章-問': [線, …] }
+let inkTool = '';                       // '' | 'pen' | 'eraser'。回答画面の中では問題を移っても続ける
+let inkHinted = false;
+// 表示中の紙面のメモ。history は「操作する前の strokes」を積んだもの（1つ戻す用）
+const ink = { paper: null, svg: null, sid: null, key: null, strokes: [], history: [] };
+
+function inkData(id) {
+  if (inkBook.id !== id) {
+    let data = {};
+    try { data = JSON.parse(localStorage.getItem(INK_STORE + id)) || {}; } catch (e) { /* 読めなければ空 */ }
+    inkBook = { id, data };
+  }
+  return inkBook.data;
+}
+
+// 線は [x0, y0, x1, y1, …]（紙面の座標）。保存は 0.5px 単位の差分を「,」でつないだ文字列
+function encodeStroke(p) {
+  const out = [];
+  let px = 0, py = 0;
+  for (let i = 0; i < p.length; i += 2) {
+    const x = Math.round(p[i] * 2), y = Math.round(p[i + 1] * 2);
+    out.push(x - px, y - py);
+    px = x; py = y;
+  }
+  return out.join(',');
+}
+function decodeStroke(str) {
+  const v = String(str).split(',').map(Number), p = [];
+  let x = 0, y = 0;
+  for (let i = 0; i + 1 < v.length; i += 2) { x += v[i]; y += v[i + 1]; p.push(x / 2, y / 2); }
+  return p.every(Number.isFinite) ? p : [];
+}
+
+// なめらかに見えるよう、点と点の中点を通る2次曲線でつなぐ
+function strokePath(p) {
+  const f = v => Math.round(v * 10) / 10;
+  if (p.length <= 2) return `M${f(p[0])} ${f(p[1])}h.01`;
+  let d = `M${f(p[0])} ${f(p[1])}`;
+  for (let i = 2; i < p.length - 2; i += 2) d += `Q${f(p[i])} ${f(p[i + 1])} ${f((p[i] + p[i + 2]) / 2)} ${f((p[i + 1] + p[i + 3]) / 2)}`;
+  return `${d}L${f(p[p.length - 2])} ${f(p[p.length - 1])}`;
+}
+
+// 線を間引く（Ramer–Douglas–Peucker）。○ のように始点と終点が重なる線も崩さない
+function simplify(p, eps = .5) {
+  const n = p.length / 2;
+  if (n <= 2) return p;
+  const keep = new Uint8Array(n);
+  keep[0] = keep[n - 1] = 1;
+  const stack = [[0, n - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const ax = p[a * 2], ay = p[a * 2 + 1], dx = p[b * 2] - ax, dy = p[b * 2 + 1] - ay, len = Math.hypot(dx, dy);
+    let far = -1, dmax = eps;
+    for (let i = a + 1; i < b; i++) {
+      const x = p[i * 2] - ax, y = p[i * 2 + 1] - ay;
+      const d = len < 1 ? Math.hypot(x, y) : Math.abs(dy * x - dx * y) / len;
+      if (d > dmax) { dmax = d; far = i; }
+    }
+    if (far >= 0) { keep[far] = 1; stack.push([a, far], [far, b]); }
+  }
+  const out = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(p[i * 2], p[i * 2 + 1]);
+  return out;
+}
+
+function nearStroke(p, x, y, r) {
+  for (let i = 0; i < p.length; i += 2) {
+    const ax = p[i], ay = p[i + 1], bx = i + 2 < p.length ? p[i + 2] : ax, by = i + 2 < p.length ? p[i + 3] : ay;
+    const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L)) : 0;
+    if (Math.hypot(ax + t * dx - x, ay + t * dy - y) <= r) return true;
+  }
+  return false;
+}
+
+function attachInk(paper, s, c, q, editable) {
+  ink.paper = paper;
+  ink.svg = paper.querySelector('.ink');
+  ink.sid = s.id;
+  ink.key = `${c + 1}-${q + 1}`;
+  ink.strokes = (inkData(s.id)[ink.key] || []).map(decodeStroke).filter(p => p.length >= 2);
+  ink.history = [];
+  drawInk();
+  if (editable) bindInk(ink.svg);
+}
+
+function drawInk() {
+  ink.svg.innerHTML = ink.strokes.map(p => `<path d="${strokePath(p)}"/>`).join('');
+}
+
+function saveInk() {
+  const data = inkData(ink.sid);
+  if (ink.strokes.length) data[ink.key] = ink.strokes.map(encodeStroke);
+  else delete data[ink.key];
+  try {
+    if (Object.keys(data).length) localStorage.setItem(INK_STORE + ink.sid, JSON.stringify(data));
+    else localStorage.removeItem(INK_STORE + ink.sid);
+  } catch (e) {
+    toast('メモを保存できませんでした');
+  }
+  paintInkBar();
+}
+
+function deleteInk(id) {
+  try { localStorage.removeItem(INK_STORE + id); } catch (e) { /* 無視 */ }
+  if (inkBook.id === id) inkBook = { id: null, data: {} };
+}
+
+// ペン・消しゴムのとき: 1本指で書く（消す）。2本指ならスクロール
+function bindInk(svgEl) {
+  const fingers = new Map();
+  let mode = '', id = null, cur = null, path = null, before = null, lastY = 0;
+  const scroller = svgEl.closest('.qscroll');
+  const toPaper = e => {
+    const r = ink.paper.getBoundingClientRect(), s = r.width / PAPER_W;
+    return [(e.clientX - r.left) / s, (e.clientY - r.top) / s];
+  };
+  const midY = () => { let y = 0; fingers.forEach(v => { y += v; }); return y / fingers.size; };
+  const erase = ([x, y]) => {
+    const n = ink.strokes.length;
+    ink.strokes = ink.strokes.filter(p => !nearStroke(p, x, y, 10));
+    if (ink.strokes.length !== n) drawInk();
+  };
+  const finish = () => {
+    if (mode === 'draw') {
+      const p = simplify(cur);
+      ink.history.push(ink.strokes.slice());
+      ink.strokes.push(p);
+      path.setAttribute('d', strokePath(p));
+      saveInk();
+    } else if (mode === 'erase' && ink.strokes.length !== before.length) {
+      ink.history.push(before);
+      saveInk();
+    }
+    mode = ''; cur = path = before = null;
+  };
+
+  svgEl.addEventListener('pointerdown', e => {
+    if (!inkTool) return;
+    e.preventDefault();
+    try { svgEl.setPointerCapture(e.pointerId); } catch (_) { /* 無視 */ }
+    fingers.set(e.pointerId, e.clientY);
+    if (fingers.size === 1) {
+      id = e.pointerId;
+      if (inkTool === 'pen') {
+        mode = 'draw';
+        cur = toPaper(e);
+        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', strokePath(cur));
+        svgEl.appendChild(path);
+      } else {
+        mode = 'erase';
+        before = ink.strokes.slice();
+        erase(toPaper(e));
+      }
+    } else if (mode !== 'scroll') {
+      // 2本目の指が触れたらスクロールに切り替える。書きかけの線は捨てる
+      if (mode === 'draw') path.remove();
+      else if (mode === 'erase') finish();
+      mode = 'scroll'; cur = path = null;
+      lastY = midY();
+    }
+  });
+  svgEl.addEventListener('pointermove', e => {
+    if (!fingers.has(e.pointerId)) return;
+    fingers.set(e.pointerId, e.clientY);
+    if (mode === 'scroll') {
+      const y = midY();
+      if (scroller) scroller.scrollTop -= y - lastY;
+      lastY = y;
+      return;
+    }
+    if (e.pointerId !== id || !mode) return;
+    const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
+    for (const ev of evs.length ? evs : [e]) {
+      const pt = toPaper(ev);
+      if (mode === 'erase') erase(pt);
+      else if (Math.hypot(pt[0] - cur[cur.length - 2], pt[1] - cur[cur.length - 1]) >= .8) cur.push(pt[0], pt[1]);
+    }
+    if (mode === 'draw') path.setAttribute('d', strokePath(cur));
+  });
+  const up = e => {
+    if (!fingers.delete(e.pointerId)) return;
+    if (e.pointerId === id && (mode === 'draw' || mode === 'erase')) finish();
+    if (fingers.size) lastY = midY();
+    else { mode = ''; id = null; }
+  };
+  svgEl.addEventListener('pointerup', up);
+  svgEl.addEventListener('pointercancel', up);
+}
+
+function inkBarHTML() {
+  return `<div class="inkbar">
+    <button class="more" data-act="inkClear" aria-label="この問題のメモを消す">${ICON.trash}</button>
+    <button class="more" data-act="inkUndo" aria-label="1つ戻す">${ICON.undo}</button>
+    <button class="more" data-act="inkTool" data-tool="eraser" aria-label="消しゴム">${ICON.eraser}</button>
+    <button data-act="inkTool" data-tool="pen" aria-label="ペンで書く">${ICON.pen}<i class="ink-dot" hidden></i></button>
+  </div>`;
+}
+
+function paintInkBar() {
+  const area = $('#qArea');
+  if (!area) return;
+  area.classList.toggle('inking', !!inkTool);
+  area.querySelectorAll('[data-tool]').forEach(b => {
+    const on = b.dataset.tool === inkTool;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on);
+  });
+  area.querySelector('[data-act="inkUndo"]').disabled = !ink.history.length;
+  area.querySelector('[data-act="inkClear"]').disabled = !ink.strokes.length;
+  area.querySelector('.ink-dot').hidden = !ink.strokes.length;   // ペンを閉じていてもメモがあると分かるように
+}
+
 /* ===== 回答 ===== */
+// 問題文が取り込まれていれば問題文（紙面）を、なければ大きな問題番号を出す
 function renderAnswer() {
+  const paper = hasQuestions();
+  inkTool = '';
   view.innerHTML = `
-    <div class="ans">
+    <div class="ans${paper ? ' has-paper' : ''}">
       ${bar('<span id="aTitle"></span>', '<span id="aSub"></span>',
             `<button class="icon-btn" data-act="toList" aria-label="回答一覧">${ICON.list}</button>`)}
+      ${paper ? `<section class="qarea" id="qArea"><div class="qscroll" id="qScroll"></div>${inkBarHTML()}</section>` : `
       <section class="qhead">
         <div class="qnum" id="aNum"></div>
         <div class="qmeta num" id="aMeta"></div>
-      </section>
+      </section>`}
       <div class="strip" id="aStrip"></div>
       <div class="choices">
         ${[1, 2, 3, 4].map(v => `<button class="choice" data-act="choose" data-v="${v}" aria-label="${v} を選ぶ">${v}</button>`).join('')}
@@ -813,11 +1199,21 @@ function paintAnswer(moved) {
   const s = current, { c, q } = s.pos, v = s.answers[c][q];
   const [from, to] = blockRange(c, Math.floor(q / BLOCK));
   $('#aTitle').textContent = `第${c + 1}章　${rangeLabel(from, to)}`;
-  $('#aSub').textContent = s.startedAt ? `${fmtMD(dateOf(s))}の記録` : '新しい記録';
-  const num = $('#aNum');
-  num.innerHTML = `<span class="q-label">問</span>${q + 1}<span class="q-of">/ ${CHAPTERS[c]}</span>`;
-  if (moved) { num.classList.remove('enter'); void num.offsetWidth; num.classList.add('enter'); }
-  $('#aMeta').textContent = `全体 ${answered(s)} / ${TOTAL} 問 回答済み`;
+  const host = $('#qScroll');
+  $('#aSub').textContent = (s.startedAt ? `${fmtMD(dateOf(s))}の記録` : '新しい記録') + (host ? ` · ${answered(s)} / ${TOTAL} 問` : '');
+  if (host) {
+    if (moved || !ink.paper || !host.contains(ink.paper)) {
+      attachInk(mountPaper(host, c, q), s, c, q, true);
+      host.scrollTop = 0;
+    }
+    ink.paper.querySelectorAll('[data-n]').forEach(el => el.classList.toggle('picked', Number(el.dataset.n) === v));
+    paintInkBar();
+  } else {
+    const num = $('#aNum');
+    num.innerHTML = `<span class="q-label">問</span>${q + 1}<span class="q-of">/ ${CHAPTERS[c]}</span>`;
+    if (moved) { num.classList.remove('enter'); void num.offsetWidth; num.classList.add('enter'); }
+    $('#aMeta').textContent = `全体 ${answered(s)} / ${TOTAL} 問 回答済み`;
+  }
   let cells = '';
   for (let i = from; i < to; i++) {
     const a = s.answers[c][i];
@@ -1018,6 +1414,7 @@ function paintEx() {
       <div><small>正解</small><b class="num">${k || '－'}</b></div>
       <span class="exmark ${st}">${{ ok: '○ 正解', ng: '× 不正解', blank: '未回答', nokey: '' }[st]}</span>
     </section>
+    ${questionOf(c, q) ? '<section class="card qcard" id="exQ"></section>' : ''}
     ${e ? `<article class="card exbody">${e.blocks.map(b => exBlock(b, k, v)).join('')}</article>` : `
       <section class="card notice">
         <b>解説データがまだ登録されていません</b>
@@ -1028,6 +1425,16 @@ function paintEx() {
       <button class="nav-btn" data-act="exPrev"${i > 0 ? '' : ' disabled'}>${ICON.back}前の問題</button>
       <button class="nav-btn" data-act="exNext"${i >= 0 && i < list.length - 1 ? '' : ' disabled'}>次の問題${ICON.next}</button>
     </nav>`;
+  // 問題文には、回答画面で書いた手書きメモを重ねる（ここでは書けない）。正解は緑、間違えた答えは赤
+  const host = $('#exQ');
+  if (host) {
+    attachInk(mountPaper(host, c, q, 1.25), s, c, q, false);
+    ink.paper.querySelectorAll('[data-n]').forEach(el => {
+      const n = Number(el.dataset.n);
+      el.classList.toggle('is-ok', n === k);
+      el.classList.toggle('is-ng', n === v && v !== k && !!k);
+    });
+  }
 }
 
 function exBlock(b, k, v) {
@@ -1090,23 +1497,28 @@ function renderKey() {
         </div>`).join('')}
     </section>
     ${HAS_KEY ? '<button class="text-danger" data-act="clearKey">正解データを削除する</button>' : ''}
-    <h2 class="sec">解説</h2>
+    <h2 class="sec">問題文・解説</h2>
     <section class="card ch">
-      <div class="ch-head"><b>解説データ</b><span class="num">${EX ? `${Object.keys(EX.items).length}問 登録済み` : '未登録'}</span></div>
-      <p class="key-help">${EX ? '○付け画面で問題をタップすると解説を開けます。'
-        : '解説つきの取り込み用リンク（…&amp;ex=…）を上の欄に貼り付けると、解説も一緒に読み込みます（通信が必要です）。'}</p>
+      <div class="ch-head"><b>問題文・解説データ</b><span class="num">${EX ? exSummary(EX) : '未登録'}</span></div>
+      <p class="key-help">${EX ? `${hasQuestions() ? '回答画面に問題文が出ます。' : ''}○付け画面で問題をタップすると解説を開けます。`
+        : '解説つきの取り込み用リンク（…&amp;ex=…）を上の欄に貼り付けると、問題文と解説も一緒に読み込みます（通信が必要です）。'}</p>
       ${getExKey() ? '<button class="secondary wide" data-act="reloadEx">解説を読み込み直す</button>' : ''}
     </section>
     ${EX ? '<button class="text-danger" data-act="clearEx">解説データを削除する</button>' : ''}
-    <p class="foot">正解データと解説は、この端末のブラウザにだけ保存されます。</p>`;
+    <p class="foot">正解データ・問題文・解説・手書きメモは、この端末のブラウザにだけ保存されます。</p>`;
+}
+
+function exSummary(data) {
+  const items = Object.values(data.items), nq = items.filter(it => it.question).length;
+  return nq ? `問題文 ${nq}問・解説 ${items.length}問` : `解説 ${items.length}問 登録済み`;
 }
 
 async function importEx(keyText) {
-  toast('解説を読み込んでいます…');
+  toast('問題文と解説を読み込んでいます…');
   try {
     const data = await fetchExplain(keyText);
     if (!saveEx(data, keyText)) return;
-    toast(`解説を読み込みました（${Object.keys(data.items).length}問）`);
+    toast(`読み込みました（${exSummary(data)}）`);
   } catch (e) {
     toast(e.message);
   }
@@ -1120,7 +1532,11 @@ async function refreshEx() {
   try {
     const data = await fetchExplain(k);
     if (EX && data.built === EX.built) return;
-    if (saveEx(data, k) && route().view === 'ex') paintEx();
+    if (!saveEx(data, k)) return;
+    // 開いている画面に反映する（回答画面は、問題文が入ったときに紙面へ切り替わる）
+    const v = route().view;
+    if (v === 'ex' && current) paintEx();
+    else if (v === 'q' && current) renderAnswer();
   } catch (e) { /* 通信できないときなどは手元の解説のまま */ }
 }
 
@@ -1148,6 +1564,7 @@ const actions = {
     if (!confirm(`${fmtDate(dateOf(s))}の記録（${answered(s)}問回答）を削除します。\n元に戻せません。よろしいですか？`)) return;
     db.sessions.splice(db.sessions.indexOf(s), 1);
     save();
+    deleteInk(s.id);
     renderHome();
   },
   back() {
@@ -1223,6 +1640,25 @@ const actions = {
     current.pos = { c: Number(el.dataset.c), q: Number(el.dataset.q) };
     save();
     nav(`#/s/${current.id}/q`);
+  },
+  inkTool(el) {
+    inkTool = inkTool === el.dataset.tool ? '' : el.dataset.tool;   // 選んでいる道具をもう一度押すと閉じる
+    if (inkTool && !inkHinted) { inkHinted = true; toast('1本指で書く・2本指でスクロール'); }
+    paintInkBar();
+  },
+  inkUndo() {
+    if (!ink.history.length) return;
+    ink.strokes = ink.history.pop();
+    drawInk();
+    saveInk();
+  },
+  inkClear() {
+    if (!ink.strokes.length) return;
+    ink.history.push(ink.strokes.slice());
+    ink.strokes = [];
+    drawInk();
+    saveInk();
+    toast('メモを消しました（↶ で戻せます）');
   },
   choose: el => choose(Number(el.dataset.v)),
   jump: el => setPos(current.pos.c, Number(el.dataset.q)),
