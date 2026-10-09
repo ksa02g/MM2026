@@ -145,7 +145,8 @@
     padding:env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   }
   .ans > .bar{position:static; margin:0 -4px; padding:6px 0; background:none; -webkit-backdrop-filter:none; backdrop-filter:none}
-  .qhead{text-align:center; padding:2px 0 10px}
+  /* 問題番号は空いた所の中央に。ストリップと選択肢は下（親指の届く位置）に寄せる */
+  .qhead{flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; text-align:center; padding:2px 0 10px}
   .qnum{font-size:clamp(52px, 17vw, 80px); font-weight:700; line-height:1.05; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
   .qnum .q-label{font-size:.36em; font-weight:600; color:var(--sub); margin-right:.15em; letter-spacing:0}
   .qnum .q-of{font-size:.3em; font-weight:500; color:var(--faint); margin-left:.3em; letter-spacing:0}
@@ -158,11 +159,12 @@
   .cell small{font-size:10px; color:var(--faint)}
   .cell b{font-size:15px; min-height:1.15em; color:var(--accent)}
   .cell.cur{border-color:var(--accent); background:var(--accent-soft)}
-  .choices{flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:12px}
+  .choices{flex:none; height:clamp(110px, 21vh, 180px); height:clamp(110px, 21dvh, 180px);
+           display:grid; grid-template-columns:repeat(4, 1fr); gap:10px}
   .choice{
-    display:grid; place-items:center; border-radius:22px;
+    display:grid; place-items:center; border-radius:18px;
     background:var(--card); border:2px solid var(--line); box-shadow:var(--shadow);
-    font-size:clamp(40px, 13vw, 60px); font-weight:700; font-variant-numeric:tabular-nums;
+    font-size:clamp(36px, 11vw, 56px); font-weight:700; font-variant-numeric:tabular-nums;
     transition:transform .08s, background-color .12s, border-color .12s, color .12s;
   }
   .choice:active{transform:scale(.97)}
@@ -173,13 +175,13 @@
   .nav-btn:active{background:var(--soft)}
   .nav-btn svg{width:20px; height:20px}
   .nav-btn.ghost{padding:0 14px; background:none; border-color:transparent; font-size:14px; color:var(--sub)}
-  /* 横向きなど背の低い画面では、選択肢を1列に並べる */
+  /* 横向きなど背の低い画面では、問題番号を1行にまとめ、選択肢を残りの高さいっぱいに */
   @media (max-height:560px){
-    .qhead{display:flex; align-items:baseline; justify-content:center; gap:14px; padding:0 0 6px}
+    .qhead{flex:none; flex-direction:row; align-items:baseline; justify-content:center; gap:14px; padding:0 0 6px}
     .qnum{font-size:40px}
     .strip{margin-bottom:8px}
     .cell{height:38px}
-    .choices{grid-template-columns:repeat(4, 1fr); grid-template-rows:1fr}
+    .choices{flex:1; min-height:0; height:auto}
     .qnav{margin-top:8px}
     .nav-btn{height:44px}
   }
