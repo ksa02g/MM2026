@@ -199,7 +199,7 @@
   .qscroll{position:absolute; inset:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
            border-radius:14px; background:var(--card); border:1.5px solid var(--line); scrollbar-gutter:stable}
   .qscroll .qsizer{animation:fade .18s ease-out}
-  .qarea.inking .qscroll{border-color:var(--pen)}
+  .qarea.inking .qscroll{border-color:var(--pen); overflow:hidden; touch-action:none}   /* ペンのあいだは動かさない */
   .qcard{margin-bottom:12px; overflow:hidden}
   .qsizer{position:relative; margin:0 auto}
   .paper{position:absolute; left:0; top:0; width:344px; transform-origin:0 0; padding:12px 14px 16px;
@@ -955,7 +955,7 @@ function mountPaper(host, c, q, max = 1.4) {
 
 const INK_STORE = 'mhm2026-ink-';
 let inkBook = { id: null, data: {} };   // 開いている回のメモ { '章-問': [線, …] }
-let inkTool = '';                       // '' | 'pen' | 'eraser'。回答画面の中では問題を移っても続ける
+let inkTool = '';                       // '' | 'pen' | 'eraser'。問題を移ったら閉じる（次の問題はまずスクロールして読めるように）
 let inkHinted = false;
 // 表示中の紙面のメモ。history は「操作する前の strokes」を積んだもの（1つ戻す用）
 const ink = { paper: null, svg: null, sid: null, key: null, strokes: [], history: [] };
@@ -1062,16 +1062,14 @@ function deleteInk(id) {
   if (inkBook.id === id) inkBook = { id: null, data: {} };
 }
 
-// ペン・消しゴムのとき: 1本指で書く（消す）。2本指ならスクロール
+// ペン・消しゴムのとき: 最初に触れた指で書く（消す）。2本目以降の指は無視する。
+// このあいだ問題文はスクロールしない（CSS の .inking で止め、iPhone 向けにタッチの既定動作も止める）
 function bindInk(svgEl) {
-  const fingers = new Map();
-  let mode = '', id = null, cur = null, path = null, before = null, lastY = 0;
-  const scroller = svgEl.closest('.qscroll');
+  let mode = '', id = null, cur = null, path = null, before = null;
   const toPaper = e => {
     const r = ink.paper.getBoundingClientRect(), s = r.width / PAPER_W;
     return [(e.clientX - r.left) / s, (e.clientY - r.top) / s];
   };
-  const midY = () => { let y = 0; fingers.forEach(v => { y += v; }); return y / fingers.size; };
   const erase = ([x, y]) => {
     const n = ink.strokes.length;
     ink.strokes = ink.strokes.filter(p => !nearStroke(p, x, y, 10));
@@ -1088,44 +1086,31 @@ function bindInk(svgEl) {
       ink.history.push(before);
       saveInk();
     }
-    mode = ''; cur = path = before = null;
+    mode = ''; id = cur = path = before = null;
   };
 
+  const block = e => { if (inkTool && e.cancelable) e.preventDefault(); };
+  svgEl.addEventListener('touchstart', block, { passive: false });
+  svgEl.addEventListener('touchmove', block, { passive: false });
   svgEl.addEventListener('pointerdown', e => {
     if (!inkTool) return;
     e.preventDefault();
+    if (id !== null) return;   // 書いている途中に触れたほかの指（手のひらなど）
     try { svgEl.setPointerCapture(e.pointerId); } catch (_) { /* 無視 */ }
-    fingers.set(e.pointerId, e.clientY);
-    if (fingers.size === 1) {
-      id = e.pointerId;
-      if (inkTool === 'pen') {
-        mode = 'draw';
-        cur = toPaper(e);
-        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', strokePath(cur));
-        svgEl.appendChild(path);
-      } else {
-        mode = 'erase';
-        before = ink.strokes.slice();
-        erase(toPaper(e));
-      }
-    } else if (mode !== 'scroll') {
-      // 2本目の指が触れたらスクロールに切り替える。書きかけの線は捨てる
-      if (mode === 'draw') path.remove();
-      else if (mode === 'erase') finish();
-      mode = 'scroll'; cur = path = null;
-      lastY = midY();
+    id = e.pointerId;
+    if (inkTool === 'pen') {
+      mode = 'draw';
+      cur = toPaper(e);
+      path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', strokePath(cur));
+      svgEl.appendChild(path);
+    } else {
+      mode = 'erase';
+      before = ink.strokes.slice();
+      erase(toPaper(e));
     }
   });
   svgEl.addEventListener('pointermove', e => {
-    if (!fingers.has(e.pointerId)) return;
-    fingers.set(e.pointerId, e.clientY);
-    if (mode === 'scroll') {
-      const y = midY();
-      if (scroller) scroller.scrollTop -= y - lastY;
-      lastY = y;
-      return;
-    }
     if (e.pointerId !== id || !mode) return;
     const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
     for (const ev of evs.length ? evs : [e]) {
@@ -1135,12 +1120,7 @@ function bindInk(svgEl) {
     }
     if (mode === 'draw') path.setAttribute('d', strokePath(cur));
   });
-  const up = e => {
-    if (!fingers.delete(e.pointerId)) return;
-    if (e.pointerId === id && (mode === 'draw' || mode === 'erase')) finish();
-    if (fingers.size) lastY = midY();
-    else { mode = ''; id = null; }
-  };
+  const up = e => { if (e.pointerId === id) finish(); };
   svgEl.addEventListener('pointerup', up);
   svgEl.addEventListener('pointercancel', up);
 }
@@ -1172,7 +1152,6 @@ function paintInkBar() {
 // 問題文が取り込まれていれば問題文（紙面）を、なければ大きな問題番号を出す
 function renderAnswer() {
   const paper = hasQuestions();
-  inkTool = '';
   view.innerHTML = `
     <div class="ans${paper ? ' has-paper' : ''}">
       ${bar('<span id="aTitle"></span>', '<span id="aSub"></span>',
@@ -1203,6 +1182,7 @@ function paintAnswer(moved) {
   $('#aSub').textContent = (s.startedAt ? `${fmtMD(dateOf(s))}の記録` : '新しい記録') + (host ? ` · ${answered(s)} / ${TOTAL} 問` : '');
   if (host) {
     if (moved || !ink.paper || !host.contains(ink.paper)) {
+      inkTool = '';
       attachInk(mountPaper(host, c, q), s, c, q, true);
       host.scrollTop = 0;
     }
@@ -1643,7 +1623,7 @@ const actions = {
   },
   inkTool(el) {
     inkTool = inkTool === el.dataset.tool ? '' : el.dataset.tool;   // 選んでいる道具をもう一度押すと閉じる
-    if (inkTool && !inkHinted) { inkHinted = true; toast('1本指で書く・2本指でスクロール'); }
+    if (inkTool && !inkHinted) { inkHinted = true; toast('ペンのあいだは画面が動きません'); }
     paintInkBar();
   },
   inkUndo() {
