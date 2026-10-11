@@ -23,6 +23,7 @@
     --line:#dce4e1; --soft:#ebf1ef;
     --accent:#23796a; --accent-ink:#ffffff; --accent-soft:#dbeee8;
     --ok:#1f8a4c; --ok-soft:#e0f3e7; --ng:#c8433a; --ng-soft:#fbe7e4; --warn:#c08412;
+    --unsure:#a16500; --unsure-ink:#ffffff;
     --pen:#d7332a;
     --shadow:0 1px 2px rgba(18,44,38,.06), 0 6px 18px rgba(18,44,38,.07);
     --r:16px;
@@ -33,6 +34,7 @@
       --line:#2a3632; --soft:#1f2925;
       --accent:#4cb59f; --accent-ink:#06201a; --accent-soft:#1c3630;
       --ok:#5cc485; --ok-soft:#173326; --ng:#f07468; --ng-soft:#3a1d1a; --warn:#e0a93c;
+      --unsure:#e0a93c; --unsure-ink:#241a04;
       --pen:#ff6f61;
       --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.25);
     }
@@ -171,12 +173,26 @@
   }
   .choice:active{transform:scale(.97)}
   .choice.on{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
-  .qnav{display:grid; grid-template-columns:1fr auto 1fr; gap:10px; margin-top:12px}
+  .qnav{display:grid; grid-template-columns:1fr auto auto 1fr; grid-template-areas:"prev clr uns nxt"; gap:8px; margin-top:12px}
+  .qnav [data-act="prev"]{grid-area:prev}
+  .qnav [data-act="clear"]{grid-area:clr}
+  .qnav [data-act="unsure"]{grid-area:uns}
+  .qnav [data-act="next"]{grid-area:nxt}
   .nav-btn{height:52px; display:flex; align-items:center; justify-content:center; gap:4px;
            border-radius:14px; background:var(--card); border:1px solid var(--line); font-size:15px; font-weight:600}
   .nav-btn:active{background:var(--soft)}
   .nav-btn svg{width:20px; height:20px}
-  .nav-btn.ghost{padding:0 14px; background:none; border-color:transparent; font-size:14px; color:var(--sub)}
+  .nav-btn.ghost{padding:0 10px; background:none; border-color:transparent; font-size:14px; color:var(--sub)}
+  /* 自信なし: 回答とは別に付け外しする印（押すと塗りつぶし） */
+  .nav-btn.unsure{gap:5px; padding:0 12px; color:var(--unsure)}
+  .nav-btn.unsure.on{background:var(--unsure); border-color:var(--unsure); color:var(--unsure-ink)}
+  .nav-btn.unsure.on .ub{background:var(--unsure-ink); color:var(--unsure)}
+  @media (max-width:359px){ .nav-btn.unsure .ub{display:none} }
+  /* 自信なしの印「?」 */
+  .ub{display:inline-block; width:15px; height:15px; border-radius:50%; background:var(--unsure); color:var(--unsure-ink);
+      font-size:11px; font-weight:700; font-style:normal; line-height:15px; text-align:center; vertical-align:2px}
+  .cell .ub{width:12px; height:12px; margin-left:1px; font-size:9.5px; line-height:12px; vertical-align:1px}
+  .hint .ub{margin:0 2px; vertical-align:1px}
   /* 横向きなど背の低い画面では、問題番号を1行にまとめ、選択肢を残りの高さいっぱいに */
   @media (max-height:560px){
     .qhead{flex:none; flex-direction:row; align-items:baseline; justify-content:center; gap:14px; padding:0 0 6px}
@@ -261,7 +277,7 @@
     .ans.has-paper .qarea{grid-column:1; grid-row:2 / 5; margin:0 0 0 -4px}
     .ans.has-paper .strip{grid-column:2; grid-row:2}
     .ans.has-paper .choices{grid-column:2; grid-row:3; height:auto; min-height:0}
-    .ans.has-paper .qnav{grid-column:2; grid-row:4}
+    .ans.has-paper .qnav{grid-column:2; grid-row:4; grid-template-columns:1fr 1fr; grid-template-areas:"clr uns" "prev nxt"}
   }
 
   /* ---- 回答一覧・○付け ---- */
@@ -269,8 +285,9 @@
   .lgrid{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px}
   .lgrid + .lgrid{margin-top:10px}
   @media (min-width:520px){ .lgrid{grid-template-columns:repeat(10, 1fr)} }
-  .acell{min-height:56px; padding:5px 0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  .acell{position:relative; min-height:56px; padding:5px 0; display:flex; flex-direction:column; align-items:center; justify-content:center;
          line-height:1.2; border-radius:10px; background:var(--soft)}
+  .acell .ub{position:absolute; top:4px; right:4px}
   button.acell:active{filter:brightness(.95)}
   .acell small{font-size:11px; color:var(--faint)}
   .acell b{font-size:20px; font-variant-numeric:tabular-nums}
@@ -556,6 +573,7 @@ function parseKey(text) {
  *   createdAt  「新しく解きはじめる」を押した時刻
  *   startedAt  最初に回答した時刻。この回の日付として表示する
  *   answers    answers[章][問] = 1〜4、未回答は 0
+ *   unsure     unsure[章][問] = 1 なら「自信なし」の印。回答とは別に付け外しする（取り消しても残る）
  *   pos        回答画面で最後に開いていた問題 {c: 章, q: 問}（どちらも 0 始まり）
  */
 const STORE = 'mhm2026-answers';
@@ -585,6 +603,7 @@ function normalize(s) {
       const v = s.answers && s.answers[c] && s.answers[c][q];
       return v >= 1 && v <= 4 ? v : 0;
     })),
+    unsure: CHAPTERS.map((n, c) => Array.from({ length: n }, (_, q) => (s.unsure && s.unsure[c] && s.unsure[c][q] ? 1 : 0))),
     pos: clampPos(s.pos),
   };
 }
@@ -614,6 +633,8 @@ function save() {
 /* ===== 集計 ===== */
 const answeredIn = (s, c) => s.answers[c].reduce((n, v) => n + (v > 0), 0);
 const answered = s => CHAPTERS.reduce((n, _, c) => n + answeredIn(s, c), 0);
+const unsureIn = (s, c) => s.unsure[c].reduce((n, v) => n + v, 0);
+const unsureCount = s => CHAPTERS.reduce((n, _, c) => n + unsureIn(s, c), 0);
 const dateOf = s => s.startedAt || s.createdAt;
 const findSession = id => db.sessions.find(s => s.id === id);
 const blocksOf = c => Math.ceil(CHAPTERS[c] / BLOCK);
@@ -632,6 +653,9 @@ function status(s, c, q) {
   if (!k) return 'nokey';
   return v === k ? 'ok' : 'ng';
 }
+
+// 絞り込み: all / ng / blank / unsure（自信なしの印）
+const inFilter = (s, c, q, f) => f === 'all' || (f === 'unsure' ? !!s.unsure[c][q] : status(s, c, q) === f);
 
 function grade(s) {
   const ch = CHAPTERS.map((len, c) => {
@@ -675,6 +699,7 @@ const ICON = {
   eraser: svg('<path d="M9 20h11"/><path d="M4.6 14.6l8.2-8.2a2 2 0 0 1 2.8 0l2.9 2.9a2 2 0 0 1 0 2.8L11 19.6H8.4l-3.8-3.8a.9.9 0 0 1 0-1.2z"/><path d="M8.5 10.7l5.2 5.2"/>'),
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
 };
+const UB = '<i class="ub" aria-hidden="true">?</i>';   // 自信なしの印
 
 function bar(title, sub, right = '<span class="icon-btn"></span>') {
   return `<header class="bar">
@@ -717,7 +742,11 @@ function closeSheet() { const el = $('#sheet'); if (el) el.remove(); }
  */
 let current = null;          // 開いている回
 let gradeFilter = 'all';
-let advanceTimer = 0;
+let listFilter = 'all';
+const ADVANCE_MS = 500;      // 回答してから次の問題へ進むまで
+let advanceTimer = 0;        // 次の問題へ進むのを待っているあいだだけ 0 以外
+
+function stopAdvance() { clearTimeout(advanceTimer); advanceTimer = 0; }
 let exPos = { c: 0, q: 0 };  // 解説画面で開いている問題
 
 function route() {
@@ -745,7 +774,7 @@ window.addEventListener('popstate', e => {
 });
 
 function render() {
-  clearTimeout(advanceTimer);
+  stopAdvance();
   closeSheet();
   // 取り込み用リンクで開いたとき。正解をアドレス欄や履歴に残さないよう、先に URL から消す
   let linked = null;
@@ -768,7 +797,7 @@ function render() {
     document.documentElement.dataset.view = 'home';
     return renderHome();
   }
-  if (current !== s) gradeFilter = 'all';
+  if (current !== s) gradeFilter = listFilter = 'all';
   current = s;
   if (r.view === 'q') renderAnswer(s);
   else if (r.view === 'list') renderList(s);
@@ -1168,6 +1197,7 @@ function renderAnswer() {
       <nav class="qnav">
         <button class="nav-btn" data-act="prev" id="aPrev">${ICON.back}前へ</button>
         <button class="nav-btn ghost" data-act="clear" id="aClear">取り消し</button>
+        <button class="nav-btn unsure" data-act="unsure" id="aUnsure">${UB}自信なし</button>
         <button class="nav-btn" data-act="next">次へ${ICON.next}</button>
       </nav>
     </div>`;
@@ -1196,8 +1226,8 @@ function paintAnswer(moved) {
   }
   let cells = '';
   for (let i = from; i < to; i++) {
-    const a = s.answers[c][i];
-    cells += `<button class="cell${i === q ? ' cur' : ''}" data-act="jump" data-q="${i}" aria-label="問${i + 1}${a ? ` 回答${a}` : ' 未回答'}"><small>${i + 1}</small><b>${a || ''}</b></button>`;
+    const a = s.answers[c][i], u = s.unsure[c][i];
+    cells += `<button class="cell${i === q ? ' cur' : ''}" data-act="jump" data-q="${i}" aria-label="問${i + 1}${a ? ` 回答${a}` : ' 未回答'}${u ? ' 自信なし' : ''}"><small>${i + 1}</small><b>${a || ''}${u ? UB : ''}</b></button>`;
   }
   $('#aStrip').innerHTML = cells;
   document.querySelectorAll('.choice').forEach(b => {
@@ -1205,6 +1235,9 @@ function paintAnswer(moved) {
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', on);
   });
+  const unsure = $('#aUnsure'), u = !!s.unsure[c][q];
+  unsure.classList.toggle('on', u);
+  unsure.setAttribute('aria-pressed', u);
   $('#aPrev').disabled = c === 0 && q === 0;
   $('#aClear').disabled = !v;
 }
@@ -1218,14 +1251,29 @@ function choose(v) {
   if (navigator.vibrate) navigator.vibrate(8);
   paintAnswer(false);
   // 選んだ番号が光るのを見せてから次の問題へ
-  clearTimeout(advanceTimer);
-  advanceTimer = setTimeout(goNext, 220);
+  stopAdvance();
+  advanceTimer = setTimeout(goNext, ADVANCE_MS);
+}
+
+// 自信なしの印を付け外しする。それだけでは次の問題へ進まない（先に押しておけば、回答したときにいつも通り進む）。
+// 回答して次へ進むのを待っているあいだに押したときは、印が付いたのを見せてから進む
+function toggleUnsure() {
+  const s = current, { c, q } = s.pos;
+  s.unsure[c][q] = s.unsure[c][q] ? 0 : 1;
+  s.updatedAt = Date.now();
+  save();
+  if (navigator.vibrate) navigator.vibrate(8);
+  paintAnswer(false);
+  if (advanceTimer) {
+    stopAdvance();
+    advanceTimer = setTimeout(goNext, ADVANCE_MS);
+  }
 }
 
 function clearAnswer() {
   const s = current, { c, q } = s.pos;
   if (!s.answers[c][q]) return;
-  clearTimeout(advanceTimer);
+  stopAdvance();
   s.answers[c][q] = 0;
   s.updatedAt = Date.now();
   if (!answered(s)) s.startedAt = null;
@@ -1234,7 +1282,7 @@ function clearAnswer() {
 }
 
 function setPos(c, q) {
-  clearTimeout(advanceTimer);
+  stopAdvance();
   current.pos = { c, q };
   save();
   paintAnswer(true);
@@ -1244,7 +1292,7 @@ function goNext() {
   const { c, q } = current.pos;
   if (q + 1 < CHAPTERS[c]) setPos(c, q + 1);
   else if (c + 1 < CHAPTERS.length) { setPos(c + 1, 0); toast(`第${c + 2}章に入りました`); }
-  else { clearTimeout(advanceTimer); showDone(); }
+  else { stopAdvance(); showDone(); }
 }
 
 function goPrev() {
@@ -1273,30 +1321,50 @@ function showDone() {
 }
 
 /* ===== 回答一覧 ===== */
+// 「自信なし」で絞り込むと、印の付いた問題だけを章ごとに詰めて並べる
 function renderList(s) {
+  const un = unsureCount(s), f = listFilter;
+  const chips = [['all', 'すべて'], ['unsure', `自信なし ${un}`]];
+  const body = CHAPTERS.map((len, c) => {
+    if (f === 'unsure') {
+      let cells = '';
+      for (let q = 0; q < len; q++) if (s.unsure[c][q]) cells += listCell(s, c, q);
+      return cells ? `<section class="card ch">
+        <div class="ch-head"><b>第${c + 1}章</b><span class="num">自信なし ${unsureIn(s, c)}</span></div>
+        <div class="lgrid">${cells}</div>
+      </section>` : '';
+    }
+    return `<section class="card ch">
+      <div class="ch-head"><b>第${c + 1}章</b><span class="num">${answeredIn(s, c)} / ${len}</span></div>
+      ${Array.from({ length: blocksOf(c) }, (_, b) => {
+        const [from, to] = blockRange(c, b);
+        let cells = '';
+        for (let q = from; q < to; q++) cells += listCell(s, c, q);
+        return `<div class="lgrid">${cells}</div>`;
+      }).join('')}
+    </section>`;
+  }).join('');
   view.innerHTML = `
     ${bar('回答一覧', `${fmtDate(dateOf(s))} · ${answered(s)} / ${TOTAL} 問`)}
-    <p class="hint">番号をタップすると、その問題を開いて答えを直せます。</p>
-    ${CHAPTERS.map((len, c) => `
-      <section class="card ch">
-        <div class="ch-head"><b>第${c + 1}章</b><span class="num">${answeredIn(s, c)} / ${len}</span></div>
-        ${Array.from({ length: blocksOf(c) }, (_, b) => {
-          const [from, to] = blockRange(c, b);
-          let cells = '';
-          for (let q = from; q < to; q++) {
-            const v = s.answers[c][q];
-            cells += `<button class="acell${v ? '' : ' blank'}" data-act="edit" data-c="${c}" data-q="${q}"><small>${q + 1}</small><b>${v || '－'}</b></button>`;
-          }
-          return `<div class="lgrid">${cells}</div>`;
-        }).join('')}
-      </section>`).join('')}`;
+    <div class="chips">
+      ${chips.map(([k, label]) => `<button class="chip num${f === k ? ' on' : ''}" data-act="filterList" data-f="${k}">${label}</button>`).join('')}
+    </div>
+    <p class="hint">番号をタップすると、その問題を開いて答えを直せます。${un ? `${UB}は「自信なし」の印です。` : ''}</p>
+    ${body || '<div class="empty">「自信なし」の印を付けた問題はありません。<br>回答画面の「自信なし」で印を付けられます。</div>'}`;
+}
+
+function listCell(s, c, q) {
+  const v = s.answers[c][q];
+  return `<button class="acell${v ? '' : ' blank'}" data-act="edit" data-c="${c}" data-q="${q}"><small>${q + 1}</small><b>${v || '－'}</b>${s.unsure[c][q] ? UB : ''}</button>`;
 }
 
 /* ===== ○付け ===== */
 function renderGrade(s) {
   const g = grade(s), blankAll = TOTAL - answered(s), f = gradeFilter;
   const pct = g.keyed ? Math.round(g.correct / g.keyed * 100) : 0;
-  const chips = [['all', 'すべて'], ...(HAS_KEY ? [['ng', `× だけ ${g.wrong}`]] : []), ['blank', `未回答 ${blankAll}`]];
+  let un = 0, unOk = 0;   // 自信なしの印を付けた問題と、そのうちの正解
+  CHAPTERS.forEach((n, c) => { for (let q = 0; q < n; q++) if (s.unsure[c][q]) { un++; unOk += status(s, c, q) === 'ok'; } });
+  const chips = [['all', 'すべて'], ...(HAS_KEY ? [['ng', `× だけ ${g.wrong}`]] : []), ['unsure', `自信なし ${un}`], ['blank', `未回答 ${blankAll}`]];
   const body = CHAPTERS.map((_, c) => gradeChapter(s, c, g.ch[c], f)).join('');
   view.innerHTML = `
     ${bar('○付け', `${fmtDate(dateOf(s))} · ${ordinal(s)}回目`)}
@@ -1306,6 +1374,7 @@ function renderGrade(s) {
         <div>
           <div class="score-main num">正解 <b>${g.correct}</b> / ${g.keyed}</div>
           <div class="score-sub num">× ${g.wrong}　未回答 ${g.blank}</div>
+          ${un ? `<div class="score-sub num">自信なし ${un}問（うち正解 ${unOk}）</div>` : ''}
           ${g.keyed < TOTAL ? `<div class="score-sub num">正解データのある ${g.keyed}問で採点</div>` : ''}
         </div>
       </section>
@@ -1321,7 +1390,7 @@ function renderGrade(s) {
     <div class="chips">
       ${chips.map(([k, label]) => `<button class="chip num${f === k ? ' on' : ''}" data-act="filter" data-f="${k}">${label}</button>`).join('')}
     </div>
-    <p class="hint">問題をタップすると解説を開きます。${f === 'all' ? '' : '解説の「次の問題」も、この絞り込みの中で進みます。'}</p>
+    <p class="hint">問題をタップすると解説を開きます。${f === 'all' ? '' : '解説の「次の問題」も、この絞り込みの中で進みます。'}${un ? `${UB}は「自信なし」の印です。` : ''}</p>
     ${body || '<div class="empty">該当する問題はありません。</div>'}`;
 }
 
@@ -1340,7 +1409,7 @@ function gradeCell(s, c, q) {
   const mark = { ok: '○', ng: '×', blank: '－', nokey: String(v) }[st];
   // × の下は「自分の答え→正解」
   const sub = st === 'ok' ? String(v) : st === 'ng' ? `${v}→${k}` : st === 'blank' && k ? `正解${k}` : '';
-  return `<button class="acell ${st}" data-act="openEx" data-c="${c}" data-q="${q}"><small>${q + 1}</small><b>${mark}</b>${sub ? `<span class="sub">${sub}</span>` : ''}</button>`;
+  return `<button class="acell ${st}" data-act="openEx" data-c="${c}" data-q="${q}"><small>${q + 1}</small><b>${mark}</b>${sub ? `<span class="sub">${sub}</span>` : ''}${s.unsure[c][q] ? UB : ''}</button>`;
 }
 
 function gradeChapter(s, c, r, f) {
@@ -1355,7 +1424,7 @@ function gradeChapter(s, c, r, f) {
     return `<section class="card ch">${head}${grids}</section>`;
   }
   let cells = '';
-  for (let q = 0; q < CHAPTERS[c]; q++) if (status(s, c, q) === f) cells += gradeCell(s, c, q);
+  for (let q = 0; q < CHAPTERS[c]; q++) if (inFilter(s, c, q, f)) cells += gradeCell(s, c, q);
   return cells ? `<section class="card ch">${head}<div class="lgrid">${cells}</div></section>` : '';
 }
 
@@ -1368,7 +1437,7 @@ const rich = s => esc(s).replace(/__(.+?)__/g, '<u>$1</u>');   // __語句__ は
 function exList(s) {
   const list = [];
   CHAPTERS.forEach((n, c) => {
-    for (let q = 0; q < n; q++) if (gradeFilter === 'all' || status(s, c, q) === gradeFilter) list.push([c, q]);
+    for (let q = 0; q < n; q++) if (inFilter(s, c, q, gradeFilter)) list.push([c, q]);
   });
   return list;
 }
@@ -1386,11 +1455,11 @@ function paintEx() {
   const v = s.answers[c][q], k = KEY[c] ? KEY[c][q] : 0, st = status(s, c, q);
   const e = EX && EX.items[`${c + 1}-${q + 1}`];
   const list = exList(s), i = list.findIndex(([a, b]) => a === c && b === q);
-  const where = gradeFilter !== 'all' && i >= 0 ? ` · ${gradeFilter === 'ng' ? '× だけ' : '未回答'} ${i + 1}/${list.length}` : '';
+  const where = gradeFilter !== 'all' && i >= 0 ? ` · ${{ ng: '× だけ', blank: '未回答', unsure: '自信なし' }[gradeFilter]} ${i + 1}/${list.length}` : '';
   $('#exView').innerHTML = `
     ${bar(`第${c + 1}章　第${q + 1}問`, `${fmtMD(dateOf(s))}の記録${where}`)}
     <section class="card exhead">
-      <div><small>あなたの答え</small><b class="num">${v || '－'}</b></div>
+      <div><small>あなたの答え${s.unsure[c][q] ? '（自信なし）' : ''}</small><b class="num">${v || '－'}</b></div>
       <div><small>正解</small><b class="num">${k || '－'}</b></div>
       <span class="exmark ${st}">${{ ok: '○ 正解', ng: '× 不正解', blank: '未回答', nokey: '' }[st]}</span>
     </section>
@@ -1530,6 +1599,7 @@ const actions = {
       id: now.toString(36) + Math.random().toString(36).slice(2, 6),
       createdAt: now, startedAt: null, updatedAt: null,
       answers: CHAPTERS.map(n => new Array(n).fill(0)),
+      unsure: CHAPTERS.map(n => new Array(n).fill(0)),
       pos: { c: 0, q: 0 },
     };
     db.sessions.push(s);
@@ -1641,11 +1711,13 @@ const actions = {
     toast('メモを消しました（↶ で戻せます）');
   },
   choose: el => choose(Number(el.dataset.v)),
+  unsure: toggleUnsure,
   jump: el => setPos(current.pos.c, Number(el.dataset.q)),
   prev: goPrev,
   next: goNext,
   clear: clearAnswer,
   filter(el) { gradeFilter = el.dataset.f; renderGrade(current); },
+  filterList(el) { listFilter = el.dataset.f; renderList(current); },
   toFirstBlank() {
     const p = firstBlank(current);
     closeSheet();
@@ -1659,7 +1731,7 @@ document.addEventListener('click', e => {
   if (el && !el.disabled && actions[el.dataset.act]) actions[el.dataset.act](el);
 });
 
-// PC で試すとき用: 1〜4 で回答、← → で移動、Backspace で取り消し
+// PC で試すとき用: 1〜4 で回答、? で自信なし、← → で移動、Backspace で取り消し
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if ($('#sheet')) { if (e.key === 'Escape') closeSheet(); return; }
@@ -1673,6 +1745,7 @@ document.addEventListener('keydown', e => {
   }
   if (route().view !== 'q' || !current) return;
   if (/^[1-4]$/.test(e.key)) choose(Number(e.key));
+  else if (e.key === '?' || e.key === '/') toggleUnsure();
   else if (e.key === 'ArrowRight') goNext();
   else if (e.key === 'ArrowLeft') goPrev();
   else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') clearAnswer();
