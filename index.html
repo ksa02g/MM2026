@@ -72,6 +72,9 @@
   .bar-title{flex:1; min-width:0; text-align:center; line-height:1.3}
   .bar-title b{display:block; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .bar-title small{display:block; font-size:12px; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bar-end{flex:none; min-width:44px; height:34px; padding:0 12px; border-radius:99px; background:var(--soft);
+           font-size:14px; font-weight:700; color:var(--sub)}
+  .bar-end:active{filter:brightness(.95)}
 
   /* ---- ホーム ---- */
   .hero{padding:calc(32px + env(safe-area-inset-top)) 4px 4px}
@@ -84,17 +87,21 @@
        font-size:13px; font-weight:600; color:var(--sub); letter-spacing:.04em}
   .pill{font-size:12px; padding:0 8px; border-radius:99px; background:var(--soft); color:var(--sub)}
 
-  .primary.big{
+  .big{
     width:100%; margin-top:16px; padding:16px 18px; display:flex; align-items:center; gap:14px; text-align:left;
-    border-radius:var(--r); background:var(--accent); color:var(--accent-ink); box-shadow:var(--shadow);
-    transition:transform .08s;
+    border-radius:var(--r); box-shadow:var(--shadow); transition:transform .08s;
   }
-  .primary.big:active{transform:scale(.985)}
-  .primary.big .ico{width:42px; height:42px; flex:none; display:grid; place-items:center; border-radius:50%;
-                    background:rgba(255,255,255,.18)}
-  .primary.big .ico svg{width:22px; height:22px}
-  .primary.big b{display:block; font-size:17px}
-  .primary.big small{display:block; font-size:13px; opacity:.85}
+  .big:active{transform:scale(.985)}
+  .big .ico{width:42px; height:42px; flex:none; display:grid; place-items:center; border-radius:50%;
+            background:rgba(255,255,255,.18)}
+  .big .ico svg{width:22px; height:22px}
+  .big b{display:block; font-size:17px}
+  .big small{display:block; font-size:13px; opacity:.85}
+  .primary.big{background:var(--accent); color:var(--accent-ink)}
+  .big.alt{margin-top:10px; background:var(--card); border:1px solid var(--line)}
+  .big.alt .ico{background:var(--accent-soft); color:var(--accent)}
+  .big.alt small{color:var(--sub); opacity:1}
+  .sec-note{margin-left:auto; font-size:12px; font-weight:400; letter-spacing:0; color:var(--faint)}
 
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
 
@@ -105,6 +112,8 @@
   .session-date{font-size:17px}
   .tag{display:inline-block; margin-left:8px; padding:1px 8px; border-radius:99px; vertical-align:2px;
        font-size:12px; font-weight:600; background:var(--accent-soft); color:var(--accent)}
+  .tag + .tag{margin-left:4px}
+  .tag.off{background:var(--soft); color:var(--sub)}
   .session-top svg{width:20px; height:20px; flex:none; color:var(--faint)}
   .session-sub{font-size:12.5px; color:var(--sub); margin-top:2px}
   .progress{height:6px; margin:12px 0 8px; border-radius:99px; background:var(--soft); overflow:hidden}
@@ -298,6 +307,8 @@
   .acell.ng{background:var(--ng-soft)}
   .acell.ng b{color:var(--ng)}
   .acell.ng .sub{color:var(--ng); font-weight:600}
+  .acell .t{font-size:10.5px; color:var(--faint); font-variant-numeric:tabular-nums}
+  .acell .t.slow{color:var(--warn); font-weight:700}
 
   .score{display:flex; align-items:center; gap:18px; padding:18px; margin-bottom:12px}
   .ring{width:92px; height:92px; flex:none; display:grid; place-items:center; border-radius:50%;
@@ -309,6 +320,13 @@
   .score-main b{font-size:26px; color:var(--ink)}
   .score-sub{font-size:13px; color:var(--sub); margin-top:2px}
   .chs{padding:10px 14px 12px; margin-bottom:12px}
+  /* 実戦形式の時間 */
+  .mtime{display:grid; grid-template-columns:1fr 1fr; margin-bottom:12px}
+  .mtime > div{padding:12px 16px}
+  .mtime > div + div{border-left:1px solid var(--line)}
+  .mtime small{display:block; font-size:12px; color:var(--sub)}
+  .mtime b{display:block; font-size:20px; line-height:1.35}
+  .mtime span{font-size:12px; color:var(--faint)}
   .crow{display:grid; grid-template-columns:52px 1fr 88px; align-items:center; gap:10px; padding:6px 0; font-size:14px}
   .cbar{position:relative; height:8px; border-radius:99px; background:var(--soft)}
   .cbar i{position:absolute; left:0; top:0; bottom:0; border-radius:inherit; background:var(--warn)}
@@ -401,6 +419,7 @@
   .sheet .btns{display:grid; gap:8px}
   .sheet .btns button{height:50px; border-radius:14px; background:var(--soft); font-weight:600}
   .sheet .btns .primary{background:var(--accent); color:var(--accent-ink)}
+  .sheet .sheet-note{margin:12px 2px 0; font-size:13px}
   @keyframes fade{from{opacity:0}}
   @keyframes up{from{transform:translateY(40px); opacity:.4}}
 
@@ -431,6 +450,16 @@ const CHAPTERS = [46, 15, 15, 41, 30, 23, 19];          // 各章の問題数
 const TOTAL = CHAPTERS.reduce((a, b) => a + b, 0);       // 189問
 const BLOCK = 10;                                        // 「どこから解くか」を選ぶ単位
 const PASS = 70;                                         // 合格の目安（%）
+const MOCK_N = 50;                                       // 実戦形式の問題数
+const MOCK_MIN = 120;                                    // 実戦形式の時間の目安（分）。本試験の試験時間
+
+// 実戦形式の章ごとの出題数。各章の問題数の比で MOCK_N 問を割り振る（端数は大きい章から +1）→ [12,4,4,11,8,6,5]
+const MOCK_QUOTA = (() => {
+  const exact = CHAPTERS.map(n => n * MOCK_N / TOTAL), quota = exact.map(Math.floor);
+  const rest = MOCK_N - quota.reduce((a, b) => a + b, 0);
+  exact.map((x, c) => [x - quota[c], c]).sort((a, b) => b[0] - a[0]).slice(0, rest).forEach(([, c]) => quota[c]++);
+  return quota;
+})();
 
 /* ===== 正解データ =====
  * アプリには埋め込まない（公開リポジトリに載せないため）。
@@ -575,21 +604,74 @@ function parseKey(text) {
  *   answers    answers[章][問] = 1〜4、未回答は 0
  *   unsure     unsure[章][問] = 1 なら「自信なし」の印。回答とは別に付け外しする（取り消しても残る）
  *   pos        回答画面で最後に開いていた問題 {c: 章, q: 問}（どちらも 0 始まり）
+ * 実戦形式の1回分（mock）は、上に加えて:
+ *   items      出題した問題 [[章, 問], …]（章の順・問題番号の順）。これがあれば実戦形式
+ *   times      times[章][問] = その問題を表示していた時間（ミリ秒）
+ *   elapsed    かかった時間の合計（ミリ秒）。回答画面を表示していたあいだだけ数える
+ *   endedAt    終了して採点した時刻。それまでは途中（続きから解ける）
+ *   ringNext   最初に回答したときに確定させる出題の記録（下の ring）。1問も答えずにやめた回は出題しなかったことにする
+ * 実戦形式は別の場所（mhm2026-mock）に保存する。前の版のアプリが開いても、通常の記録に混ざらないように
  */
 const STORE = 'mhm2026-answers';
-const db = { sessions: load() };
+const MOCK_STORE = 'mhm2026-mock';
+const ALL = CHAPTERS.flatMap((n, c) => Array.from({ length: n }, (_, q) => [c, q]));   // 全問を章・問題番号の順に
+const isMock = s => !!s.items;
+const orderOf = s => s.items || ALL;   // 回答画面で解く順番
+const indexIn = (list, c, q) => list.findIndex(([a, b]) => a === c && b === q);
 
-function load() {
+/* 実戦形式の出題の記録（章ごと・リングバッファ）
+ *   used  今の周で出題した問題。章の問題を出し切ったら空にして次の周へ
+ *   prev  前回の実戦形式で出題した問題。周が替わった直後でも、続けて同じ問題が出ないように避ける
+ */
+const mockStore = loadMockStore();
+let ring = mockStore.ring;
+const db = { sessions: [...load(), ...mockStore.mocks] };
+
+function readStore(key) {
   let raw = null;
-  try { raw = localStorage.getItem(STORE); } catch (e) { return []; }
-  if (!raw) return [];
+  try { raw = localStorage.getItem(key); } catch (e) { return null; }
+  if (!raw) return null;
   try {
-    return (JSON.parse(raw).sessions || []).map(normalize).filter(Boolean);
+    return JSON.parse(raw);
   } catch (e) {
     // 読めないデータは上書きで失わないよう、別名で残しておく
-    try { localStorage.setItem(STORE + '.broken', raw); } catch (_) {}
-    return [];
+    try { localStorage.setItem(key + '.broken', raw); } catch (_) {}
+    return null;
   }
+}
+
+function load() {
+  const data = readStore(STORE);
+  return (data && Array.isArray(data.sessions) ? data.sessions : []).map(normalize).filter(Boolean);
+}
+
+function loadMockStore() {
+  const data = readStore(MOCK_STORE) || {};
+  const r = data.ring || {};
+  const fix = a => CHAPTERS.map((n, c) =>
+    [...new Set((a && Array.isArray(a[c]) ? a[c] : []).filter(q => Number.isInteger(q) && q >= 0 && q < n))]);
+  return {
+    mocks: (Array.isArray(data.mocks) ? data.mocks : []).map(normalizeMock).filter(Boolean),
+    ring: { used: fix(r.used), prev: fix(r.prev) },
+  };
+}
+
+function normalizeMock(m) {
+  const s = normalize(m);
+  if (!s || !Array.isArray(m.items)) return null;
+  const seen = new Set();
+  s.items = m.items.filter(it => {
+    const ok = Array.isArray(it) && Number.isInteger(it[0]) && it[0] >= 0 && it[0] < CHAPTERS.length
+               && Number.isInteger(it[1]) && it[1] >= 0 && it[1] < CHAPTERS[it[0]] && !seen.has(`${it[0]}-${it[1]}`);
+    if (ok) seen.add(`${it[0]}-${it[1]}`);
+    return ok;
+  }).map(([c, q]) => [c, q]);
+  if (!s.items.length) return null;
+  s.times = CHAPTERS.map((n, c) => Array.from({ length: n }, (_, q) => Math.max(0, Number(m.times && m.times[c] && m.times[c][q]) || 0)));
+  s.elapsed = Math.max(0, Number(m.elapsed) || 0);
+  s.endedAt = Number(m.endedAt) || null;
+  if (indexIn(s.items, s.pos.c, s.pos.q) < 0) s.pos = { c: s.items[0][0], q: s.items[0][1] };
+  return s;
 }
 
 function normalize(s) {
@@ -616,15 +698,16 @@ function clampPos(p) {
 
 let askedPersist = false;
 function save() {
-  const sessions = db.sessions.filter(s => answered(s) > 0);   // 1問も答えていない回は残さない
+  const keep = db.sessions.filter(s => answered(s) > 0);   // 1問も答えていない回は残さない
   try {
-    localStorage.setItem(STORE, JSON.stringify({ v: 1, sessions }));
+    localStorage.setItem(STORE, JSON.stringify({ v: 1, sessions: keep.filter(s => !isMock(s)) }));
+    localStorage.setItem(MOCK_STORE, JSON.stringify({ v: 1, mocks: keep.filter(isMock), ring }));
   } catch (e) {
     toast('保存できませんでした');
     return;
   }
   // ブラウザの容量整理で消されにくくしてもらう（対応ブラウザのみ）
-  if (!askedPersist && sessions.length && navigator.storage && navigator.storage.persist) {
+  if (!askedPersist && keep.length && navigator.storage && navigator.storage.persist) {
     askedPersist = true;
     navigator.storage.persist().catch(() => {});
   }
@@ -641,10 +724,49 @@ const blocksOf = c => Math.ceil(CHAPTERS[c] / BLOCK);
 const blockRange = (c, b) => [b * BLOCK, Math.min((b + 1) * BLOCK, CHAPTERS[c])];
 const rangeLabel = (from, to) => to - from > 1 ? `${from + 1}–${to}` : `${to}`;   // 1問だけのブロックは「41」
 
-// 何回目の記録か（最初に回答した日の古い順）
+// 何回目の記録か（最初に回答した日の古い順）。通常の回と実戦形式は別に数える
 function ordinal(s) {
-  return db.sessions.filter(x => answered(x) > 0).sort((a, b) => dateOf(a) - dateOf(b)).indexOf(s) + 1;
+  return db.sessions.filter(x => isMock(x) === isMock(s) && answered(x) > 0).sort((a, b) => dateOf(a) - dateOf(b)).indexOf(s) + 1;
 }
+
+/* ===== 実戦形式の出題 =====
+ * 章ごとに MOCK_QUOTA の数だけ、今の周でまだ出していない問題からランダムに選ぶ（前回出した問題は避ける）。
+ * 章の問題を出し切ったら次の周に入り、足りない分を次の周から選ぶ。
+ * 189問 ÷ 50問なので、3回で150問を出し、4回目は残りの39問＋次の周の11問になる。
+ * 選んだ問題は章の順・問題番号の順に並べる。戻り値の ring は、最初に回答したときに確定させる
+ */
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function drawMock(r) {
+  const items = [], next = { used: [], prev: [] };
+  CHAPTERS.forEach((n, c) => {
+    const want = Math.min(MOCK_QUOTA[c], n), prev = new Set(r.prev[c]), picked = [];
+    let used = new Set(r.used[c]);
+    const take = cands => {
+      for (const q of shuffle(cands)) {
+        if (picked.length >= want) break;
+        picked.push(q);
+        used.add(q);
+      }
+    };
+    const all = ALL.filter(([cc]) => cc === c).map(([, q]) => q);
+    take(all.filter(q => !used.has(q) && !prev.has(q)));
+    if (picked.length < want) {
+      used = new Set();   // この章は出し切った → 次の周へ（ここまでに選んだ問題は前の周のぶん）
+      take(all.filter(q => !prev.has(q) && !picked.includes(q)));
+      if (picked.length < want) take(all.filter(q => !picked.includes(q)));   // 章の問題が少なくて、前回の問題を避けきれないとき
+    }
+    picked.sort((a, b) => a - b).forEach(q => items.push([c, q]));
+    next.used[c] = [...used].sort((a, b) => a - b);
+    next.prev[c] = picked;
+  });
+  return { items, ring: next };
+}
+
+const ringRest = () => TOTAL - ring.used.reduce((n, a) => n + a.length, 0);   // 今の周でまだ出していない問題の数
 
 // ok: 正解 / ng: 不正解 / blank: 未回答 / nokey: 回答したが正解データなし
 function status(s, c, q) {
@@ -657,18 +779,15 @@ function status(s, c, q) {
 // 絞り込み: all / ng / blank / unsure（自信なしの印）
 const inFilter = (s, c, q, f) => f === 'all' || (f === 'unsure' ? !!s.unsure[c][q] : status(s, c, q) === f);
 
+// 採点。実戦形式は出題した問題だけで数える（どちらも未回答は不正解の扱い）
 function grade(s) {
-  const ch = CHAPTERS.map((len, c) => {
-    const r = { hasKey: !!KEY[c], keyed: 0, correct: 0, wrong: 0, blank: 0 };
-    if (!KEY[c]) return r;
-    for (let q = 0; q < len; q++) {
-      if (!KEY[c][q]) continue;
-      r.keyed++;
-      const st = status(s, c, q);
-      if (st === 'ok') r.correct++; else if (st === 'ng') r.wrong++; else r.blank++;
-    }
-    return r;
-  });
+  const ch = CHAPTERS.map((_, c) => ({ hasKey: !!KEY[c], keyed: 0, correct: 0, wrong: 0, blank: 0 }));
+  for (const [c, q] of orderOf(s)) {
+    if (!KEY[c] || !KEY[c][q]) continue;
+    const r = ch[c], st = status(s, c, q);
+    r.keyed++;
+    if (st === 'ok') r.correct++; else if (st === 'ng') r.wrong++; else r.blank++;
+  }
   const sum = k => ch.reduce((n, r) => n + r[k], 0);
   return { ch, keyed: sum('keyed'), correct: sum('correct'), wrong: sum('wrong'), blank: sum('blank') };
 }
@@ -686,6 +805,15 @@ function fmtWhen(ms) {
   const d = new Date(ms);
   return d.toDateString() === new Date().toDateString() ? `今日 ${fmtTime(ms)}` : `${d.getMonth() + 1}/${d.getDate()} ${fmtTime(ms)}`;
 }
+// かかった時間: 12:34（1時間を超えたら 1:02:03）と、85分12秒
+function fmtClock(ms) {
+  const t = Math.floor(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60;
+  return h ? `${h}:${pad(m)}:${pad(t % 60)}` : `${m}:${pad(t % 60)}`;
+}
+function fmtDur(ms) {
+  const t = Math.round(ms / 1000), m = Math.floor(t / 60);
+  return m ? `${m}分${pad(t % 60)}秒` : `${t}秒`;
+}
 
 const svg = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra}>${d}</svg>`;
 const ICON = {
@@ -698,6 +826,7 @@ const ICON = {
   pen: svg('<path d="M4 20l1.2-4.6L15.8 4.8a2.1 2.1 0 0 1 3 0l.4.4a2.1 2.1 0 0 1 0 3L8.6 18.8z"/><path d="M13.5 7l3.5 3.5"/>'),
   eraser: svg('<path d="M9 20h11"/><path d="M4.6 14.6l8.2-8.2a2 2 0 0 1 2.8 0l2.9 2.9a2 2 0 0 1 0 2.8L11 19.6H8.4l-3.8-3.8a.9.9 0 0 1 0-1.2z"/><path d="M8.5 10.7l5.2 5.2"/>'),
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
+  timer: svg('<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5M12 2.5V6"/>'),
 };
 const UB = '<i class="ub" aria-hidden="true">?</i>';   // 自信なしの印
 
@@ -739,6 +868,7 @@ function closeSheet() { const el = $('#sheet'); if (el) el.remove(); }
  *   #/key              正解データ
  *   #key=…&ex=…        取り込み用リンク。開いたらすぐ #/key に置き換える
  * 回答画面の中で問題を移るときは履歴を積まない（戻るでその回の画面へ戻れるように）。
+ * 実戦形式の回は、終了するまでは回答画面だけ、終了したら結果（grade）と解説だけを開く。
  */
 let current = null;          // 開いている回
 let gradeFilter = 'all';
@@ -775,6 +905,7 @@ window.addEventListener('popstate', e => {
 
 function render() {
   stopAdvance();
+  clockOff();
   closeSheet();
   // 取り込み用リンクで開いたとき。正解をアドレス欄や履歴に残さないよう、先に URL から消す
   let linked = null;
@@ -799,6 +930,15 @@ function render() {
   }
   if (current !== s) gradeFilter = listFilter = 'all';
   current = s;
+  if (isMock(s)) {
+    const v = !s.endedAt ? 'q' : r.view === 'ex' ? 'ex' : 'grade';
+    if (v !== r.view) history.replaceState(history.state, '', `#/s/${s.id}/${v}`);
+    document.documentElement.dataset.view = v;
+    if (v === 'q') renderAnswer();
+    else if (v === 'ex') renderEx(r.arg);
+    else renderGrade(s);
+    return;
+  }
   if (r.view === 'q') renderAnswer(s);
   else if (r.view === 'list') renderList(s);
   else if (r.view === 'grade') renderGrade(s);
@@ -810,7 +950,8 @@ function render() {
 function renderHome() {
   current = null;
   db.sessions = db.sessions.filter(s => answered(s) > 0);   // 何も答えずに戻った回は捨てる
-  const list = [...db.sessions].sort((a, b) => dateOf(b) - dateOf(a));
+  const byDate = (a, b) => dateOf(b) - dateOf(a);
+  const list = db.sessions.filter(s => !isMock(s)).sort(byDate), mocks = db.sessions.filter(isMock).sort(byDate);
   view.innerHTML = `
     <header class="hero">
       <p class="eyebrow">メンタルヘルス・マネジメント検定</p>
@@ -821,9 +962,16 @@ function renderHome() {
       <span class="ico">${ICON.plus}</span>
       <span><b>新しく解きはじめる</b><small>別の回として、最初に回答した日付で記録します</small></span>
     </button>
+    <button class="big alt" data-act="newMock">
+      <span class="ico">${ICON.timer}</span>
+      <span><b>実戦形式で解く</b><small>${MOCK_N}問をランダムに出題・時間も計ります</small></span>
+    </button>
     <h2 class="sec">記録 <span class="pill num">${list.length}</span></h2>
     ${list.length ? list.map(sessionCard).join('')
       : '<div class="empty">まだ記録はありません。<br>「新しく解きはじめる」から始めましょう。</div>'}
+    ${mocks.length ? `
+      <h2 class="sec">実戦形式 <span class="pill num">${mocks.length}</span><span class="sec-note num">この周の未出題 ${ringRest()} / ${TOTAL}問</span></h2>
+      ${mocks.map(mockCard).join('')}` : ''}
     <button class="card linkrow" data-act="toKey">
       <span>正解データ</span>
       <span class="linkrow-val num">${HAS_KEY ? `${keyCount()} / ${TOTAL} 問 登録済み` : '未登録'}</span>
@@ -856,6 +1004,31 @@ function sessionCard(s) {
       <div class="session-actions">
         <button data-act="toList" data-id="${s.id}">回答を見る</button>
         <button data-act="toGrade" data-id="${s.id}">○付け</button>
+        <button class="danger" data-act="del" data-id="${s.id}" aria-label="この記録を削除">${ICON.trash}</button>
+      </div>
+    </article>`;
+}
+
+// 実戦形式の回。途中の回は点数を出さない（続きを解くときに答えが分からないように）
+function mockCard(s) {
+  const n = answered(s), N = s.items.length, g = s.endedAt && HAS_KEY ? grade(s) : null;
+  return `
+    <article class="card session">
+      <button class="session-main" data-act="open" data-id="${s.id}">
+        <div class="session-top">
+          <div><b class="session-date">${fmtDate(dateOf(s))}</b><span class="tag">${ordinal(s)}回目</span>${s.endedAt ? '' : '<span class="tag off">途中</span>'}</div>
+          ${ICON.next}
+        </div>
+        <div class="session-sub num">${fmtTime(dateOf(s))} 開始 · かかった時間 ${fmtDur(s.elapsed)}</div>
+        <div class="progress"><i style="width:${n / N * 100}%"></i></div>
+        <div class="session-stats num">
+          <span><b>${n}</b> / ${N} 回答</span>
+          ${g && g.keyed ? `<span>正解 <b>${g.correct}</b> / ${g.keyed}（${Math.round(g.correct / g.keyed * 100)}%）</span>` : ''}
+        </div>
+      </button>
+      <div class="session-actions">
+        ${s.endedAt ? `<button data-act="toGrade" data-id="${s.id}">結果を見る</button>`
+          : `<button data-act="open" data-id="${s.id}">続きを解く</button><button data-act="askEndMock" data-id="${s.id}">終了して採点</button>`}
         <button class="danger" data-act="del" data-id="${s.id}" aria-label="この記録を削除">${ICON.trash}</button>
       </div>
     </article>`;
@@ -1178,13 +1351,15 @@ function paintInkBar() {
 }
 
 /* ===== 回答 ===== */
-// 問題文が取り込まれていれば問題文（紙面）を、なければ大きな問題番号を出す
+// 問題文が取り込まれていれば問題文（紙面）を、なければ大きな問題番号を出す。
+// 実戦形式は、右上が「終了」で、経過時間を出す
 function renderAnswer() {
-  const paper = hasQuestions();
+  const paper = hasQuestions(), mock = isMock(current);
   view.innerHTML = `
     <div class="ans${paper ? ' has-paper' : ''}">
-      ${bar('<span id="aTitle"></span>', '<span id="aSub"></span>',
-            `<button class="icon-btn" data-act="toList" aria-label="回答一覧">${ICON.list}</button>`)}
+      ${bar('<span id="aTitle"></span>', `${mock ? '<span id="aClock"></span> · ' : ''}<span id="aSub"></span>`,
+            mock ? '<button class="bar-end" data-act="askEndMock">終了</button>'
+                 : `<button class="icon-btn" data-act="toList" aria-label="回答一覧">${ICON.list}</button>`)}
       ${paper ? `<section class="qarea" id="qArea"><div class="qscroll" id="qScroll"></div>${inkBarHTML()}</section>` : `
       <section class="qhead">
         <div class="qnum" id="aNum"></div>
@@ -1202,14 +1377,27 @@ function renderAnswer() {
       </nav>
     </div>`;
   paintAnswer(true);
+  clockOn();
 }
 
 function paintAnswer(moved) {
   const s = current, { c, q } = s.pos, v = s.answers[c][q];
-  const [from, to] = blockRange(c, Math.floor(q / BLOCK));
-  $('#aTitle').textContent = `第${c + 1}章　${rangeLabel(from, to)}`;
-  const host = $('#qScroll');
-  $('#aSub').textContent = (s.startedAt ? `${fmtMD(dateOf(s))}の記録` : '新しい記録') + (host ? ` · ${answered(s)} / ${TOTAL} 問` : '');
+  const mock = isMock(s), list = orderOf(s), idx = indexIn(list, c, q), host = $('#qScroll');
+  // 10マス: 通常の回は章の中の10問ずつ、実戦形式は出題した順に10問ずつ
+  let from, to, cellAt;
+  if (mock) {
+    from = idx - idx % BLOCK;
+    to = Math.min(from + BLOCK, list.length);
+    cellAt = i => list[i];
+    $('#aTitle').textContent = `実戦形式　問${idx + 1} / ${list.length}`;
+    $('#aSub').textContent = `第${c + 1}章 第${q + 1}問`;
+    paintClock();
+  } else {
+    [from, to] = blockRange(c, Math.floor(q / BLOCK));
+    cellAt = i => [c, i];
+    $('#aTitle').textContent = `第${c + 1}章　${rangeLabel(from, to)}`;
+    $('#aSub').textContent = (s.startedAt ? `${fmtMD(dateOf(s))}の記録` : '新しい記録') + (host ? ` · ${answered(s)} / ${TOTAL} 問` : '');
+  }
   if (host) {
     if (moved || !ink.paper || !host.contains(ink.paper)) {
       inkTool = '';
@@ -1220,14 +1408,16 @@ function paintAnswer(moved) {
     paintInkBar();
   } else {
     const num = $('#aNum');
-    num.innerHTML = `<span class="q-label">問</span>${q + 1}<span class="q-of">/ ${CHAPTERS[c]}</span>`;
+    num.innerHTML = mock ? `<span class="q-label">問</span>${idx + 1}<span class="q-of">/ ${list.length}</span>`
+                         : `<span class="q-label">問</span>${q + 1}<span class="q-of">/ ${CHAPTERS[c]}</span>`;
     if (moved) { num.classList.remove('enter'); void num.offsetWidth; num.classList.add('enter'); }
-    $('#aMeta').textContent = `全体 ${answered(s)} / ${TOTAL} 問 回答済み`;
+    $('#aMeta').textContent = mock ? `第${c + 1}章 第${q + 1}問 · ${answered(s)} / ${list.length} 問 回答済み`
+                                   : `全体 ${answered(s)} / ${TOTAL} 問 回答済み`;
   }
   let cells = '';
   for (let i = from; i < to; i++) {
-    const a = s.answers[c][i], u = s.unsure[c][i];
-    cells += `<button class="cell${i === q ? ' cur' : ''}" data-act="jump" data-q="${i}" aria-label="問${i + 1}${a ? ` 回答${a}` : ' 未回答'}${u ? ' 自信なし' : ''}"><small>${i + 1}</small><b>${a || ''}${u ? UB : ''}</b></button>`;
+    const [cc, qq] = cellAt(i), a = s.answers[cc][qq], u = s.unsure[cc][qq];
+    cells += `<button class="cell${cc === c && qq === q ? ' cur' : ''}" data-act="jump" data-c="${cc}" data-q="${qq}" aria-label="問${i + 1}${a ? ` 回答${a}` : ' 未回答'}${u ? ' 自信なし' : ''}"><small>${i + 1}</small><b>${a || ''}${u ? UB : ''}</b></button>`;
   }
   $('#aStrip').innerHTML = cells;
   document.querySelectorAll('.choice').forEach(b => {
@@ -1238,7 +1428,7 @@ function paintAnswer(moved) {
   const unsure = $('#aUnsure'), u = !!s.unsure[c][q];
   unsure.classList.toggle('on', u);
   unsure.setAttribute('aria-pressed', u);
-  $('#aPrev').disabled = c === 0 && q === 0;
+  $('#aPrev').disabled = idx === 0;
   $('#aClear').disabled = !v;
 }
 
@@ -1247,6 +1437,7 @@ function choose(v) {
   s.answers[c][q] = v;
   s.updatedAt = Date.now();
   if (!s.startedAt) s.startedAt = s.updatedAt;   // 最初に回答した日を、この回の日付にする
+  if (s.ringNext) { ring = s.ringNext; delete s.ringNext; }   // 実戦形式: 最初に回答したら、出題したことを確定する
   save();
   if (navigator.vibrate) navigator.vibrate(8);
   paintAnswer(false);
@@ -1284,30 +1475,31 @@ function clearAnswer() {
 function setPos(c, q) {
   stopAdvance();
   current.pos = { c, q };
+  clockLap();   // 実戦形式: ここまでの時間は、前に表示していた問題のぶん
   save();
   paintAnswer(true);
 }
 
+// 解く順番（orderOf）で次へ・前へ。章が替わったら知らせる
 function goNext() {
-  const { c, q } = current.pos;
-  if (q + 1 < CHAPTERS[c]) setPos(c, q + 1);
-  else if (c + 1 < CHAPTERS.length) { setPos(c + 1, 0); toast(`第${c + 2}章に入りました`); }
-  else { stopAdvance(); showDone(); }
+  const { c, q } = current.pos, list = orderOf(current), next = list[indexIn(list, c, q) + 1];
+  if (!next) { stopAdvance(); showDone(); return; }
+  setPos(next[0], next[1]);
+  if (next[0] !== c) toast(`第${next[0] + 1}章に入りました`);
 }
 
 function goPrev() {
-  const { c, q } = current.pos;
-  if (q > 0) setPos(c, q - 1);
-  else if (c > 0) setPos(c - 1, CHAPTERS[c - 1] - 1);
+  const { c, q } = current.pos, list = orderOf(current), prev = list[indexIn(list, c, q) - 1];
+  if (prev) setPos(prev[0], prev[1]);
 }
 
 function firstBlank(s) {
-  for (let c = 0; c < CHAPTERS.length; c++)
-    for (let q = 0; q < CHAPTERS[c]; q++) if (!s.answers[c][q]) return { c, q };
-  return null;
+  const p = orderOf(s).find(([c, q]) => !s.answers[c][q]);
+  return p ? { c: p[0], q: p[1] } : null;
 }
 
 function showDone() {
+  if (isMock(current)) return showMockDone();
   const n = answered(current), rest = TOTAL - n;
   openSheet(`
     <h2>${rest ? '最後の問題まで来ました' : `全${TOTAL}問 回答しました`}</h2>
@@ -1317,6 +1509,60 @@ function showDone() {
       ${rest ? '<button class="primary" data-act="toFirstBlank">未回答の問題へ</button>' : ''}
       <button class="${rest ? '' : 'primary'}" data-act="toGrade">○付けを見る</button>
       <button data-act="closeSheet">閉じる</button>
+    </div>`);
+}
+
+/* ===== 実戦形式 =====
+ * 時間は回答画面を表示しているあいだだけ数え、表示していた問題の時間（times）と合計（elapsed）に足す。
+ * ほかの画面へ移ったとき（render）・アプリを裏に回したとき（visibilitychange）に止めて保存する。
+ * 左上の ‹ で抜けると中断（あとで続きから）、右上の「終了」で採点して結果へ
+ */
+const clock = { s: null, c: 0, q: 0, since: 0, timer: 0 };
+const elapsedOf = s => s.elapsed + (clock.s === s ? Math.max(0, Date.now() - clock.since) : 0);
+
+function clockOn() {
+  const s = current;
+  if (clock.s || !s || !isMock(s) || s.endedAt || route().view !== 'q' || document.hidden) return;
+  Object.assign(clock, { s, c: s.pos.c, q: s.pos.q, since: Date.now() });
+  clock.timer = setInterval(paintClock, 1000);
+  paintClock();
+}
+
+// ここまでの時間を表示していた問題に足して、今の問題で数え直す
+function clockLap() {
+  const s = clock.s;
+  if (!s) return;
+  const now = Date.now(), d = Math.max(0, now - clock.since);
+  s.times[clock.c][clock.q] += d;
+  s.elapsed += d;
+  Object.assign(clock, { c: s.pos.c, q: s.pos.q, since: now });
+}
+
+function clockOff() {
+  if (!clock.s) return;
+  clockLap();
+  clearInterval(clock.timer);
+  clock.s = null;
+  save();
+}
+
+function paintClock() {
+  const el = $('#aClock');
+  if (el && current && isMock(current)) el.textContent = `経過 ${fmtClock(elapsedOf(current))}`;
+}
+
+document.addEventListener('visibilitychange', () => { if (document.hidden) clockOff(); else clockOn(); });
+window.addEventListener('pagehide', clockOff);
+
+function showMockDone() {
+  const s = current, N = s.items.length, n = answered(s), rest = N - n;
+  openSheet(`
+    <h2>${rest ? '最後の問題まで来ました' : `${N}問すべて回答しました`}</h2>
+    <p>${rest ? `${N}問中 ${n}問に回答済み、未回答が ${rest}問あります。` : '見直しが済んだら、終了して採点します。'}経過 ${fmtClock(elapsedOf(s))}</p>
+    <div class="btns">
+      ${rest ? '<button class="primary" data-act="toFirstBlank">未回答の問題へ</button>' : ''}
+      <button class="${rest ? '' : 'primary'}" data-act="endMock">終了して採点する</button>
+      <button data-act="closeSheet">${rest ? '閉じる' : '見直す'}</button>
     </div>`);
 }
 
@@ -1358,16 +1604,20 @@ function listCell(s, c, q) {
   return `<button class="acell${v ? '' : ' blank'}" data-act="edit" data-c="${c}" data-q="${q}"><small>${q + 1}</small><b>${v || '－'}</b>${s.unsure[c][q] ? UB : ''}</button>`;
 }
 
-/* ===== ○付け ===== */
+/* ===== ○付け（実戦形式の結果も） ===== */
+const paceOf = s => MOCK_MIN * 60000 / s.items.length;   // 実戦形式の1問あたりの時間の目安
+
 function renderGrade(s) {
-  const g = grade(s), blankAll = TOTAL - answered(s), f = gradeFilter;
+  const mock = isMock(s), list = orderOf(s);
+  const g = grade(s), blankAll = list.length - answered(s), f = gradeFilter;
   const pct = g.keyed ? Math.round(g.correct / g.keyed * 100) : 0;
   let un = 0, unOk = 0;   // 自信なしの印を付けた問題と、そのうちの正解
-  CHAPTERS.forEach((n, c) => { for (let q = 0; q < n; q++) if (s.unsure[c][q]) { un++; unOk += status(s, c, q) === 'ok'; } });
+  for (const [c, q] of list) if (s.unsure[c][q]) { un++; unOk += status(s, c, q) === 'ok'; }
   const chips = [['all', 'すべて'], ...(HAS_KEY ? [['ng', `× だけ ${g.wrong}`]] : []), ['unsure', `自信なし ${un}`], ['blank', `未回答 ${blankAll}`]];
   const body = CHAPTERS.map((_, c) => gradeChapter(s, c, g.ch[c], f)).join('');
+  const n = answered(s);
   view.innerHTML = `
-    ${bar('○付け', `${fmtDate(dateOf(s))} · ${ordinal(s)}回目`)}
+    ${bar(mock ? '実戦形式の結果' : '○付け', `${fmtDate(dateOf(s))} · ${mock ? '実戦 ' : ''}${ordinal(s)}回目`)}
     ${HAS_KEY ? `
       <section class="card score">
         <div class="ring" style="--p:${pct}"><span class="num"><b>${pct}<small>%</small></b></span></div>
@@ -1375,22 +1625,29 @@ function renderGrade(s) {
           <div class="score-main num">正解 <b>${g.correct}</b> / ${g.keyed}</div>
           <div class="score-sub num">× ${g.wrong}　未回答 ${g.blank}</div>
           ${un ? `<div class="score-sub num">自信なし ${un}問（うち正解 ${unOk}）</div>` : ''}
-          ${g.keyed < TOTAL ? `<div class="score-sub num">正解データのある ${g.keyed}問で採点</div>` : ''}
+          ${g.keyed < list.length ? `<div class="score-sub num">正解データのある ${g.keyed}問で採点</div>` : ''}
         </div>
-      </section>
-      <section class="card chs">
-        ${g.ch.map(chapterRow).join('')}
-        <div class="chs-note">縦線は合格の目安 ${PASS}%</div>
       </section>` : `
       <section class="card notice">
         <b>正解データがまだ登録されていません</b>
         <p>取り込むと、ここで自動的に○付けします。いまは自分の回答だけを表示しています。</p>
         <button class="secondary" data-act="toKey">正解データを取り込む</button>
       </section>`}
+    ${mock ? `
+      <section class="card mtime">
+        <div><small>かかった時間</small><b class="num">${fmtDur(s.elapsed)}</b><span>目安 ${MOCK_MIN}分</span></div>
+        <div><small>1問あたり</small><b class="num">${n ? fmtDur(s.elapsed / n) : '－'}</b><span>目安 ${fmtDur(paceOf(s))}</span></div>
+      </section>` : ''}
+    ${HAS_KEY ? `
+      <section class="card chs">
+        ${g.ch.map(chapterRow).join('')}
+        <div class="chs-note">縦線は合格の目安 ${PASS}%</div>
+      </section>` : ''}
     <div class="chips">
       ${chips.map(([k, label]) => `<button class="chip num${f === k ? ' on' : ''}" data-act="filter" data-f="${k}">${label}</button>`).join('')}
     </div>
-    <p class="hint">問題をタップすると解説を開きます。${f === 'all' ? '' : '解説の「次の問題」も、この絞り込みの中で進みます。'}${un ? `${UB}は「自信なし」の印です。` : ''}</p>
+    <p class="hint">問題をタップすると解説を開きます。${f === 'all' ? '' : '解説の「次の問題」も、この絞り込みの中で進みます。'}${un ? `${UB}は「自信なし」の印です。` : ''}${
+      mock ? `いちばん下は、その問題にかけた時間（目安の ${fmtDur(paceOf(s))} を超えたものは黄色）。` : ''}</p>
     ${body || '<div class="empty">該当する問題はありません。</div>'}`;
 }
 
@@ -1409,12 +1666,15 @@ function gradeCell(s, c, q) {
   const mark = { ok: '○', ng: '×', blank: '－', nokey: String(v) }[st];
   // × の下は「自分の答え→正解」
   const sub = st === 'ok' ? String(v) : st === 'ng' ? `${v}→${k}` : st === 'blank' && k ? `正解${k}` : '';
-  return `<button class="acell ${st}" data-act="openEx" data-c="${c}" data-q="${q}"><small>${q + 1}</small><b>${mark}</b>${sub ? `<span class="sub">${sub}</span>` : ''}${s.unsure[c][q] ? UB : ''}</button>`;
+  // 実戦形式は、その問題にかけた時間も（開かなかった問題は出さない）
+  const t = isMock(s) ? s.times[c][q] : 0, time = t ? `<span class="t${t > paceOf(s) ? ' slow' : ''}">${fmtClock(t)}</span>` : '';
+  return `<button class="acell ${st}" data-act="openEx" data-c="${c}" data-q="${q}"><small>${q + 1}</small><b>${mark}</b>${sub ? `<span class="sub">${sub}</span>` : ''}${time}${s.unsure[c][q] ? UB : ''}</button>`;
 }
 
+// 章ごとのカード。通常の回の「すべて」は10問ずつ並べ、絞り込みと実戦形式は当てはまる問題だけを詰めて並べる
 function gradeChapter(s, c, r, f) {
   const head = `<div class="ch-head"><b>第${c + 1}章</b><span class="num">${r.hasKey ? `正解 ${r.correct} / ${r.keyed}` : '正解未登録'}</span></div>`;
-  if (f === 'all') {
+  if (f === 'all' && !isMock(s)) {
     const grids = Array.from({ length: blocksOf(c) }, (_, b) => {
       const [from, to] = blockRange(c, b);
       let cells = '';
@@ -1424,7 +1684,7 @@ function gradeChapter(s, c, r, f) {
     return `<section class="card ch">${head}${grids}</section>`;
   }
   let cells = '';
-  for (let q = 0; q < CHAPTERS[c]; q++) if (inFilter(s, c, q, f)) cells += gradeCell(s, c, q);
+  for (const [cc, q] of orderOf(s)) if (cc === c && inFilter(s, c, q, f)) cells += gradeCell(s, c, q);
   return cells ? `<section class="card ch">${head}<div class="lgrid">${cells}</div></section>` : '';
 }
 
@@ -1433,19 +1693,13 @@ const CIRCLED = { '①': 1, '②': 2, '③': 3, '④': 4 };
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const rich = s => esc(s).replace(/__(.+?)__/g, '<u>$1</u>');   // __語句__ は下線
 
-// 解説の「前の問題／次の問題」で進む順番。○付け画面の絞り込みに合わせる
-function exList(s) {
-  const list = [];
-  CHAPTERS.forEach((n, c) => {
-    for (let q = 0; q < n; q++) if (inFilter(s, c, q, gradeFilter)) list.push([c, q]);
-  });
-  return list;
-}
+// 解説の「前の問題／次の問題」で進む順番。○付け画面の絞り込みに合わせる（実戦形式は出題した問題の中で）
+const exList = s => orderOf(s).filter(([c, q]) => inFilter(s, c, q, gradeFilter));
 
 function renderEx(arg) {
-  const m = /^(\d+)-(\d+)$/.exec(arg || '');
+  const m = /^(\d+)-(\d+)$/.exec(arg || ''), list = orderOf(current);
   const c = m ? Number(m[1]) - 1 : -1, q = m ? Number(m[2]) - 1 : -1;
-  exPos = c >= 0 && c < CHAPTERS.length && q >= 0 && q < CHAPTERS[c] ? { c, q } : { c: 0, q: 0 };
+  exPos = indexIn(list, c, q) >= 0 ? { c, q } : { c: list[0][0], q: list[0][1] };
   view.innerHTML = '<div id="exView"></div>';
   paintEx();
 }
@@ -1457,7 +1711,7 @@ function paintEx() {
   const list = exList(s), i = list.findIndex(([a, b]) => a === c && b === q);
   const where = gradeFilter !== 'all' && i >= 0 ? ` · ${{ ng: '× だけ', blank: '未回答', unsure: '自信なし' }[gradeFilter]} ${i + 1}/${list.length}` : '';
   $('#exView').innerHTML = `
-    ${bar(`第${c + 1}章　第${q + 1}問`, `${fmtMD(dateOf(s))}の記録${where}`)}
+    ${bar(`第${c + 1}章　第${q + 1}問`, `${isMock(s) ? `実戦 ${ordinal(s)}回目 · 時間 ${fmtClock(s.times[c][q])}` : `${fmtMD(dateOf(s))}の記録`}${where}`)}
     <section class="card exhead">
       <div><small>あなたの答え${s.unsure[c][q] ? '（自信なし）' : ''}</small><b class="num">${v || '－'}</b></div>
       <div><small>正解</small><b class="num">${k || '－'}</b></div>
@@ -1605,21 +1859,72 @@ const actions = {
     db.sessions.push(s);
     nav(`#/s/${s.id}`);
   },
+  newMock() {
+    const now = Date.now(), { items, ring: next } = drawMock(ring);
+    const s = {
+      id: now.toString(36) + Math.random().toString(36).slice(2, 6),
+      createdAt: now, startedAt: null, updatedAt: null, endedAt: null,
+      answers: CHAPTERS.map(n => new Array(n).fill(0)),
+      unsure: CHAPTERS.map(n => new Array(n).fill(0)),
+      times: CHAPTERS.map(n => new Array(n).fill(0)),
+      elapsed: 0, items, ringNext: next,
+      pos: { c: items[0][0], q: items[0][1] },
+    };
+    db.sessions.push(s);
+    nav(`#/s/${s.id}/q`);
+    toast(`${items.length}問・時間を計りはじめました`);
+  },
+  askEndMock(el) {
+    const s = findSession(idOf(el));
+    if (!s) return;
+    const N = s.items.length, n = answered(s), inQ = route().view === 'q';
+    openSheet(`
+      <h2>実戦形式を終了しますか？</h2>
+      <p class="num">${n ? `${N}問中 ${n}問に回答・経過 ${fmtClock(elapsedOf(s))}。${N - n ? `未回答の ${N - n}問は不正解として採点します。` : ''}終了すると、答えは直せなくなります。`
+        : 'まだ1問も回答していません。終了すると記録に残らず、出題した問題も次の回にまわります。'}</p>
+      <div class="btns">
+        <button class="primary" data-act="endMock" data-id="${s.id}">${n ? '終了して採点する' : '終了する'}</button>
+        <button data-act="closeSheet">${inQ ? '続ける' : 'やめる'}</button>
+      </div>
+      ${inQ ? '<p class="sheet-note">あとで続けるときは、左上の ‹ で中断できます（時間も止まります）。</p>' : ''}`);
+  },
+  endMock(el) {
+    const s = findSession(idOf(el));
+    if (!s) return;
+    closeSheet();
+    if (clock.s === s) clockOff();
+    if (!answered(s)) {
+      // 1問も答えていなければ記録しない（出題の記録も確定させない）
+      db.sessions.splice(db.sessions.indexOf(s), 1);
+      deleteInk(s.id);
+      history.replaceState(null, '', '#/');
+      render();
+      toast('1問も回答していないので、記録しませんでした');
+      return;
+    }
+    s.endedAt = s.updatedAt = Date.now();
+    save();
+    // 回答画面からなら、戻るで終わった回答画面に戻らないよう置き換える
+    const hash = `#/s/${s.id}/grade`;
+    if (route().view === 'q') { history.replaceState(history.state, '', hash); render(); window.scrollTo(0, 0); }
+    else nav(hash);
+  },
   open: el => nav(`#/s/${el.dataset.id}`),
   toList: el => nav(`#/s/${idOf(el)}/list`),
   toGrade: el => nav(`#/s/${idOf(el)}/grade`),
   del(el) {
     const s = findSession(el.dataset.id);
     if (!s) return;
-    if (!confirm(`${fmtDate(dateOf(s))}の記録（${answered(s)}問回答）を削除します。\n元に戻せません。よろしいですか？`)) return;
+    if (!confirm(`${fmtDate(dateOf(s))}の${isMock(s) ? '実戦形式の' : ''}記録（${answered(s)}問回答）を削除します。\n元に戻せません。よろしいですか？`)) return;
     db.sessions.splice(db.sessions.indexOf(s), 1);
     save();
     deleteInk(s.id);
     renderHome();
   },
   back() {
-    const r = route();
-    goBack(r.id && r.view !== 'hub' ? `#/s/${r.id}` : '#/');
+    const r = route(), s = r.id && findSession(r.id);
+    // 実戦形式の親の画面は、解説なら結果、それ以外はホーム
+    goBack(!s || r.view === 'hub' ? '#/' : !isMock(s) ? `#/s/${r.id}` : r.view === 'ex' ? `#/s/${r.id}/grade` : '#/');
   },
   toKey: () => nav('#/key'),
   readKey() {
@@ -1712,7 +2017,7 @@ const actions = {
   },
   choose: el => choose(Number(el.dataset.v)),
   unsure: toggleUnsure,
-  jump: el => setPos(current.pos.c, Number(el.dataset.q)),
+  jump: el => setPos(Number(el.dataset.c), Number(el.dataset.q)),
   prev: goPrev,
   next: goNext,
   clear: clearAnswer,
