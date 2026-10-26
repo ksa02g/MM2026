@@ -80,6 +80,10 @@
   .hero{padding:calc(32px + env(safe-area-inset-top)) 4px 4px}
   .eyebrow{font-size:13px; font-weight:600; color:var(--accent); letter-spacing:.04em}
   .hero h1{font-size:28px; line-height:1.25; margin-top:2px}
+  /* 問題集の切り替え */
+  .books{display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:14px; padding:4px; border-radius:14px; background:var(--soft)}
+  .books button{height:40px; border-radius:10px; font-size:15px; font-weight:600; color:var(--sub)}
+  .books button.on{background:var(--card); color:var(--ink); box-shadow:var(--shadow)}
   .lead{font-size:14px; color:var(--sub); margin-top:8px}
   .nw{white-space:nowrap}
 
@@ -445,9 +449,37 @@
 <script>
 'use strict';
 
+/* ===== 問題集 =====
+ * 2冊を切り替えて使う。開いている問題集は localStorage（mhm2026-book）に覚え、切り替えたら読み込み直す。
+ * 記録・正解データ・問題文と解説は問題集ごとに別の場所に保存する（1冊目は前からの mhm2026-… のまま）。
+ *   chapters  各章の問題数
+ *   store     保存場所の名前の頭
+ *   explain   問題文・解説の暗号化ファイル
+ */
+const BOOKS = {
+  1: { name: '過去問題集', chapters: [46, 15, 15, 41, 30, 23, 19], store: 'mhm2026', explain: 'explain.bin' },
+  2: { name: 'テキスト問題集', chapters: [50, 33, 24, 41, 37, 26, 23], store: 'mhm2026-b2', explain: 'explain2.bin' },
+};
+const BOOK_STORE = 'mhm2026-book';
+const BOOK_ID = (() => { try { return localStorage.getItem(BOOK_STORE) === '2' ? 2 : 1; } catch (e) { return 1; } })();
+const BOOK = BOOKS[BOOK_ID];
+
+// 問題集を切り替える（hash を残して読み込み直す。取り込み用リンクで開いたときも、この後で取り込む）
+function switchBook(id, hash = '#/') {
+  try {
+    localStorage.setItem(BOOK_STORE, String(id));
+    if (localStorage.getItem(BOOK_STORE) !== String(id)) return false;
+  } catch (e) {
+    return false;   // 保存できないと読み込み直しても切り替わらないので、何もしない
+  }
+  history.replaceState(null, '', hash);
+  location.reload();
+  return true;
+}
+
 /* ===== 問題集の構成 ===== */
-const CHAPTERS = [46, 15, 15, 41, 30, 23, 19];          // 各章の問題数
-const TOTAL = CHAPTERS.reduce((a, b) => a + b, 0);       // 189問
+const CHAPTERS = BOOK.chapters;                          // 各章の問題数
+const TOTAL = CHAPTERS.reduce((a, b) => a + b, 0);       // 過去問題集は189問
 const BLOCK = 10;                                        // 「どこから解くか」を選ぶ単位
 const PASS = 70;                                         // 合格の目安（%）
 const MOCK_N = 50;                                       // 実戦形式の問題数
@@ -466,7 +498,7 @@ const MOCK_QUOTA = (() => {
  * 端末ごとに「正解データ」画面か取り込み用リンク（…#key=…）で取り込み、localStorage に保存する。
  * KEY[章][問] = 1〜4（0 は正解不明）。章ごと未登録なら null
  */
-const KEY_STORE = 'mhm2026-key';
+const KEY_STORE = `${BOOK.store}-key`;
 let KEY = loadKey();
 let HAS_KEY = KEY.some(Boolean);
 
@@ -499,9 +531,10 @@ function saveKey(next) {
  * 解説の文章も公開リポジトリには平文で置かない。AES-GCM で暗号化した explain.bin だけを置き、
  * 取り込み用リンクの「ex=…」（鍵）で端末ごとに復号して localStorage に保存する。
  * explain.bin = IV(12バイト) + 暗号文。中身は { built, items: { '章-問': { answer, blocks: [...] } } }
+ * テキスト問題集は explain2.bin（取り込み用リンクに b=2 が付く）
  */
-const EX_STORE = 'mhm2026-ex';
-const EXKEY_STORE = 'mhm2026-exkey';
+const EX_STORE = `${BOOK.store}-ex`;
+const EXKEY_STORE = `${BOOK.store}-exkey`;
 let EX = loadEx();
 
 function loadEx() {
@@ -518,7 +551,7 @@ function getExKey() {
 
 async function fetchExplain(keyText) {
   if (!(window.crypto && crypto.subtle)) throw new Error('この開き方では解説を読み込めません（https のページで開いてください）');
-  const res = await fetch('explain.bin', { cache: 'no-cache' });
+  const res = await fetch(BOOK.explain, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`解説ファイルを取得できませんでした（${res.status}）`);
   const buf = new Uint8Array(await res.arrayBuffer());
   const b64 = keyText.replace(/-/g, '+').replace(/_/g, '/');
@@ -611,9 +644,10 @@ function parseKey(text) {
  *   endedAt    終了して採点した時刻。それまでは途中（続きから解ける）
  *   ringNext   最初に回答したときに確定させる出題の記録（下の ring）。1問も答えずにやめた回は出題しなかったことにする
  * 実戦形式は別の場所（mhm2026-mock）に保存する。前の版のアプリが開いても、通常の記録に混ざらないように
+ * テキスト問題集は mhm2026-b2-answers・mhm2026-b2-mock（手書きメモは回の ID ごとなので共通の mhm2026-ink-）
  */
-const STORE = 'mhm2026-answers';
-const MOCK_STORE = 'mhm2026-mock';
+const STORE = `${BOOK.store}-answers`;
+const MOCK_STORE = `${BOOK.store}-mock`;
 const ALL = CHAPTERS.flatMap((n, c) => Array.from({ length: n }, (_, q) => [c, q]));   // 全問を章・問題番号の順に
 const isMock = s => !!s.items;
 const orderOf = s => s.items || ALL;   // 回答画面で解く順番
@@ -885,6 +919,9 @@ function route() {
   return kind === 's' && id ? { id, view: page || 'hub', arg } : { view: 'home' };
 }
 
+// 取り込み用リンクの問題集（b=2 ならテキスト問題集、付いていなければ過去問題集）
+const linkBook = text => (/(?:^|[#&?\s])b=2(?!\d)/.test(text) ? 2 : 1);
+
 function nav(hash) {
   history.replaceState({ ...(history.state || {}), y: window.scrollY }, '');
   history.pushState({ inApp: true }, '', hash);
@@ -907,9 +944,11 @@ function render() {
   stopAdvance();
   clockOff();
   closeSheet();
-  // 取り込み用リンクで開いたとき。正解をアドレス欄や履歴に残さないよう、先に URL から消す
+  // 取り込み用リンクで開いたとき。正解をアドレス欄や履歴に残さないよう、先に URL から消す。
+  // 別の問題集のリンクなら、その問題集に切り替えて読み込み直してから取り込む
   let linked = null;
-  if (/^#(key|ex)=/.test(location.hash)) {
+  if (/^#(key|ex|b)=/.test(location.hash)) {
+    if (linkBook(location.hash) !== BOOK_ID && switchBook(linkBook(location.hash), location.hash)) return;
     linked = location.hash.slice(1);
     history.replaceState(null, '', '#/key');
   }
@@ -956,7 +995,10 @@ function renderHome() {
     <header class="hero">
       <p class="eyebrow">メンタルヘルス・マネジメント検定</p>
       <h1>回答シート 2026</h1>
-      <p class="lead">問題集を見ながら、1〜4 をタップして記録します。<span class="nw">全7章・${TOTAL}問。</span></p>
+      <div class="books" role="group" aria-label="問題集">
+        ${Object.entries(BOOKS).map(([id, b]) => `<button class="${Number(id) === BOOK_ID ? 'on' : ''}" data-act="book" data-book="${id}" aria-pressed="${Number(id) === BOOK_ID}">${b.name}</button>`).join('')}
+      </div>
+      <p class="lead">${BOOK.name}を見ながら、1〜4 をタップして記録します。<span class="nw">全7章・${TOTAL}問。</span></p>
     </header>
     <button class="primary big" data-act="newSession">
       <span class="ico">${ICON.plus}</span>
@@ -1090,7 +1132,7 @@ const emw = s => [...String(s)].reduce((n, ch) => n + (/[\x20-\x7e]/.test(ch) ? 
 function paperHTML(c, q) {
   const Q = questionOf(c, q);
   if (!Q) return `<div class="pp-head"><b>第${q + 1}問</b></div><p class="pp-none">この問題の問題文はありません</p>`;
-  const meta = [Q.kai, Q.ref && `公式テキスト ${Q.ref}`].filter(Boolean).map(esc).join('<br>');
+  const meta = [Q.kai, Q.ref && `公式テキスト ${Q.ref}`, Q.sec].filter(Boolean).map(esc).join('<br>');   // sec: テキスト問題集の節・問題番号
   return `
     <div class="pp-head"><b>第${q + 1}問</b>${meta ? `<span>${meta}</span>` : ''}</div>
     <p class="pp-stem">${qrich(Q.stem)}</p>
@@ -1751,7 +1793,9 @@ function exBlock(b, k, v) {
     const tag = n && n === k ? '<span class="extag ok">正解</span>'
               : n && n === v ? '<span class="extag ng">あなたの答え</span>' : '';
     // 先頭の「適切である。」「不適切である。」を太字に
-    const text = rich(b.text).replace(/^((?:出題時点では)?(?:不適切|適切)である。)/, '<b>$1</b>');
+    // 先頭の「適切である。」「不適切である。」を太字に。テキスト問題集は判定（verdict）が別にある
+    const text = b.verdict ? `<b>${esc(b.verdict)}</b>${b.text ? `　${rich(b.text)}` : ''}`
+      : rich(b.text).replace(/^((?:出題時点では)?(?:不適切|適切)である。)/, '<b>$1</b>');
     return `<div class="exitem${n && n === k ? ' is-ans' : ''}"><span class="exitem-mark">${esc(b.mark)}</span><div>${tag}${text}${ref}</div></div>`;
   }
   if (b.type === 'note') return `<div class="exnote">${rich(b.text)}${ref}</div>`;
@@ -1782,7 +1826,7 @@ const keyGroups = a => a.map(v => v || '-').join('').replace(/(.{10})(?=.)/g, '$
 
 function renderKey() {
   view.innerHTML = `
-    ${bar('正解データ', HAS_KEY ? `${keyCount()} / ${TOTAL} 問 登録済み` : '未登録')}
+    ${bar('正解データ', `${BOOK.name} · ${HAS_KEY ? `${keyCount()} / ${TOTAL} 問 登録済み` : '未登録'}`)}
     <section class="card ch">
       <div class="ch-head"><b>取り込む</b></div>
       <p class="key-help">取り込み用のリンク、または正解の数字を貼り付けて「読み取る」を押してください。</p>
@@ -1927,8 +1971,17 @@ const actions = {
     goBack(!s || r.view === 'hub' ? '#/' : !isMock(s) ? `#/s/${r.id}` : r.view === 'ex' ? `#/s/${r.id}/grade` : '#/');
   },
   toKey: () => nav('#/key'),
+  book(el) {
+    const id = Number(el.dataset.book);
+    if (id !== BOOK_ID && !switchBook(id)) toast('切り替えられませんでした（ブラウザに保存できません）');
+  },
   readKey() {
     const text = $('#keyText').value;
+    // もう一方の問題集の取り込み用リンクなら、その問題集に切り替えてから取り込む
+    if (/(?:^|[#&?\s])(?:key|ex|b)=/.test(text) && linkBook(text) !== BOOK_ID) {
+      const frag = text.match(/#(\S+)/);
+      if (switchBook(linkBook(text), '#' + (frag ? frag[1] : text.trim()))) return;
+    }
     const ex = text.match(/(?:^|[#&?\s])ex=([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/);
     // 解説の鍵だけのリンク（key= がない）は、正解は読まない
     const r = ex && !/key=/.test(text) ? { chapters: null } : parseKey(text);
