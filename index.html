@@ -1762,7 +1762,8 @@ function paintEx() {
     </section>
     ${questionOf(c, q) ? '<section class="card qcard" id="exQ"></section>' : ''}
     ${e ? `<article class="card exbody">${e.blocks.map(b => exBlock(b, k, v)).join('')}${BOOK_ID === 2
-      ? '<p class="exfoot">公式テキストのページは、過去問題集の解説から推定したものです。(?) は確かさ 中、(??) は 低。</p>' : ''}</article>` : `
+      ? '<p class="exfoot">公式テキストのページは、過去問題集の解説から推定したものです。(?) は確かさ 中、(??) は 低。'
+        + '「索引」は、選択肢や解説に出てくる用語を公式テキストの索引で引いたページです。</p>' : ''}</article>` : `
       <section class="card notice">
         <b>解説データがまだ登録されていません</b>
         <p>解説つきの取り込み用リンク（…&amp;ex=…）を「正解データ」画面に貼り付けると読み込めます。</p>
