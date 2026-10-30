@@ -392,19 +392,23 @@
   .extag.ok{background:var(--ok)}
   .extag.ng{background:var(--ng)}
   .exref{display:block; margin-top:2px; text-align:right; font-size:12px; color:var(--accent)}
+  .v5tag{display:inline-block; margin-left:6px; padding:0 7px; border-radius:99px; font-size:11px; font-weight:700; line-height:1.7;
+         background:var(--soft); color:var(--sub)}
   .exfoot{padding:10px 0 6px; font-size:12px; line-height:1.6; color:var(--faint)}
 
   /* ---- 見直しノート（公式テキストを軸にした短い解説） ---- */
   .note{padding:14px 16px 12px; margin-bottom:12px; font-size:15.5px; line-height:1.8}
   .note-label{display:inline-block; margin-bottom:6px; padding:0 8px; border-radius:99px; font-size:11.5px; font-weight:700;
               background:var(--accent-soft); color:var(--accent)}
-  .nt-head{display:flex; align-items:baseline; gap:10px; margin-bottom:4px}
+  .nt-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:0 10px; margin-bottom:4px}
   .nt-head b{font-size:16px; line-height:1.5}
   .nt-head span{margin-left:auto; flex:none; font-size:12px; color:var(--sub)}
   .nt-p{margin:6px 0}
   .nt-list{margin:6px 0; padding-left:1.3em}
   .nt-list li{margin:3px 0}
   .nt-red{color:var(--ng); font-weight:700}
+  .nt-v5{margin:4px 0 6px; padding:5px 10px; border-radius:8px; background:var(--soft); font-size:13px; line-height:1.6; color:var(--sub)}
+  .nt-sec{margin:22px 4px 8px; font-size:14px; color:var(--sub)}
   .nt-table{font-size:13.5px}
   .nt-fig{margin:10px 0 4px}
   .nt-fig figcaption{font-size:13px; font-weight:700; margin-bottom:4px}
@@ -1773,8 +1777,9 @@ const exList = s => orderOf(s).filter(([c, q]) => inFilter(s, c, q, gradeFilter)
 
 /* ===== 見直しノート =====
  * 間違えた・自信なしの問題について、公式テキストの該当箇所から作った短い解説（解説データの items['章-問'].note）。
- *   note = { title, pages, found, kind（最新も× / 前に× / 自信なし）, body: [{type: p|list|table|figure, …}] }
- * 文の中の [[…]] は赤い太字（間違えた所の正しい内容）、**…** は太字
+ *   note = { title, pages, found, kind（最新も× / 前に× / 自信なし）, v5, body: [{type: p|list|table|figure, …}] }
+ *   v5: 'all' … 第5版の内容からの出題（最新の公式テキストにない。優先度低）、'part' … ノートの一部が第5版の内容
+ * 文の中の [[…]] は赤い太字（間違えた所や、問題で変えられやすい所の正しい内容）、**…** は太字
  */
 const noteRich = s => esc(s).replace(/\[\[(.+?)\]\]/g, '<b class="nt-red">$1</b>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 const noteCount = () => (EX ? Object.values(EX.items).filter(it => it.note).length : 0);
@@ -1782,9 +1787,14 @@ const noteCount = () => (EX ? Object.values(EX.items).filter(it => it.note).leng
 const safeSvg = svg => String(svg || '').replace(/<script[\s\S]*?<\/script>/gi, '')
   .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, '').replace(/\s(?:xlink:)?href\s*=\s*("[^"]*"|'[^']*')/gi, '');
 
+const NOTE_V5 = {
+  all: 'この問題は第5版の内容からの出題です。最新の公式テキストにはないため、優先度は低めです。',
+  part: '「第5版」と書いた所は、最新の公式テキストにない内容です（優先度は低め）。',
+};
 function noteHTML(n) {
   const pages = (n.pages || []).length ? `公式テキスト p.${n.pages.join('、')}` : '';
   return `<div class="nt-head"><b>${esc(n.title)}</b><span>${pages}${n.found === false ? '（テキストで未確認）' : ''}</span></div>` +
+    (NOTE_V5[n.v5] ? `<p class="nt-v5">${NOTE_V5[n.v5]}</p>` : '') +
     (n.body || []).map(b =>
       b.type === 'list' ? `<ul class="nt-list">${(b.items || []).map(x => `<li>${noteRich(x)}</li>`).join('')}</ul>`
       : b.type === 'table' ? `<table class="pp-table nt-table">${b.title ? `<caption>${esc(b.title)}</caption>` : ''}${
@@ -1801,9 +1811,10 @@ const NOTE_KINDS = [['all', 'すべて'], ['最新も×', '最新も ×'], ['前
 function renderNotes() {
   current = null;
   const pg = n => (n.pages && n.pages.length ? Math.min(...n.pages) : 999);
+  const low = n => (n.v5 === 'all' ? 1 : 0);                 // 第5版の内容からの出題は、最後にまとめる
   const list = Object.entries(EX ? EX.items : {}).filter(([, it]) => it.note)
     .map(([k, it]) => ({ k, n: it.note }))
-    .sort((a, b) => pg(a.n) - pg(b.n) || a.k.localeCompare(b.k, 'ja', { numeric: true }));
+    .sort((a, b) => low(a.n) - low(b.n) || pg(a.n) - pg(b.n) || a.k.localeCompare(b.k, 'ja', { numeric: true }));
   const chips = NOTE_KINDS.filter(([k]) => k === 'all' || list.some(x => x.n.kind === k));
   if (!chips.some(([k]) => k === noteFilter)) noteFilter = 'all';
   const shown = list.filter(x => noteFilter === 'all' || x.n.kind === noteFilter);
@@ -1813,10 +1824,12 @@ function renderNotes() {
       ${chips.map(([k, label]) => `<button class="chip num${noteFilter === k ? ' on' : ''}" data-act="filterNotes" data-f="${k}">${label} ${
         k === 'all' ? list.length : list.filter(x => x.n.kind === k).length}</button>`).join('')}
     </div>
-    <p class="hint">公式テキストのページ順です。<b class="nt-red">赤い太字</b>は、問題で間違えた所の正しい内容です。</p>
-    ${shown.map(x => {
+    <p class="hint">公式テキストのページ順です。<b class="nt-red">赤い太字</b>は、間違えた所や問題で変えられやすい所の正しい内容です。${
+      list.some(x => low(x.n)) ? '第5版の内容からの出題（最新の公式テキストにない）は、最後にまとめています。' : ''}</p>
+    ${shown.map((x, i) => {
       const [c, q] = x.k.split('-');
-      return `<article class="card note">${noteHTML(x.n)}<button class="nt-q" data-act="noteQ" data-k="${x.k}">第${c}章 第${q}問の解説を開く ›</button></article>`;
+      const sec = low(x.n) && !(i && low(shown[i - 1].n)) ? '<h3 class="nt-sec">第5版の内容（最新の公式テキストにない・優先度低）</h3>' : '';
+      return `${sec}<article class="card note">${noteHTML(x.n)}<button class="nt-q" data-act="noteQ" data-k="${x.k}">第${c}章 第${q}問の解説を開く ›</button></article>`;
     }).join('') || '<div class="empty">該当するノートはありません。</div>'}`;
 }
 
@@ -1845,7 +1858,9 @@ function paintEx() {
     ${questionOf(c, q) ? '<section class="card qcard" id="exQ"></section>' : ''}
     ${e ? `<article class="card exbody">${e.blocks.map(b => exBlock(b, k, v)).join('')}${BOOK_ID === 2
       ? '<p class="exfoot">公式テキストのページは、過去問題集の解説から推定したものです。(?) は確かさ 中、(??) は 低。'
-        + '「索引」は、選択肢や解説に出てくる用語を公式テキストの索引で引いたページです。</p>' : ''}</article>` : `
+        + '「索引」は、選択肢や解説に出てくる用語を公式テキストの索引で引いたページです。</p>'
+      : e.blocks.some(b => b.ref && v5Only(b.ref))
+      ? '<p class="exfoot">公式テキスト〔第5版〕のページだけが書かれた所は、最新の公式テキストにない内容です。優先度は低めです。</p>' : ''}</article>` : `
       <section class="card notice">
         <b>解説データがまだ登録されていません</b>
         <p>解説つきの取り込み用リンク（…&amp;ex=…）を「正解データ」画面に貼り付けると読み込めます。</p>
@@ -1867,8 +1882,11 @@ function paintEx() {
   }
 }
 
+// 過去問題集の解説で、参照先が公式テキスト〔第5版〕だけの所は、最新の公式テキストにない内容（優先度は低め）
+const v5Only = r => /第5版/.test(r) && !/公式テキスト(?!〔第5版〕|p\.〔第5版〕)/.test(r);
+
 function exBlock(b, k, v) {
-  const ref = b.ref ? `<span class="exref">▶ ${esc(b.ref)}</span>` : '';
+  const ref = b.ref ? `<span class="exref">▶ ${esc(b.ref)}${v5Only(b.ref) ? '<span class="v5tag">最新テキストにない・優先度低</span>' : ''}</span>` : '';
   if (b.type === 'item' && b.level === 2) {
     // 選択肢の説明の中の箇条書き。選択肢と同じ ①② が使われていても、正解の印は付けない
     return `<div class="exitem sub"><span class="exitem-mark">${esc(b.mark)}</span><div>${rich(b.text)}${ref}</div></div>`;
