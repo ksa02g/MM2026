@@ -349,6 +349,7 @@
   .linkrow{width:100%; margin-top:20px; padding:14px 16px; display:flex; align-items:center; gap:10px;
            text-align:left; font-weight:600}
   .linkrow:active{background:var(--soft)}
+  .linkrow + .linkrow{margin-top:10px}
   .linkrow-val{margin-left:auto; font-size:13px; font-weight:400; color:var(--sub)}
   .linkrow svg{width:18px; height:18px; flex:none; color:var(--faint)}
   .key-help{font-size:13px; color:var(--sub); margin:0 2px 10px}
@@ -421,6 +422,7 @@
          border-radius:22px 22px 0 0; background:var(--card); animation:up .22s ease-out}
   .sheet h2{font-size:19px}
   .sheet p{font-size:14.5px; color:var(--sub); margin:6px 0 16px}
+  .sheet textarea{margin-bottom:12px; word-break:break-all}
   .sheet .btns{display:grid; gap:8px}
   .sheet .btns button{height:50px; border-radius:14px; background:var(--soft); font-weight:600}
   .sheet .btns .primary{background:var(--accent); color:var(--accent-ink)}
@@ -1018,6 +1020,11 @@ function renderHome() {
     <button class="card linkrow" data-act="toKey">
       <span>正解データ</span>
       <span class="linkrow-val num">${HAS_KEY ? `${keyCount()} / ${TOTAL} 問 登録済み` : '未登録'}</span>
+      ${ICON.next}
+    </button>
+    <button class="card linkrow" data-act="exportOpen">
+      <span>記録を書き出す</span>
+      <span class="linkrow-val">PC で分析する用</span>
       ${ICON.next}
     </button>
     <p class="foot">
@@ -1890,6 +1897,30 @@ async function refreshEx() {
   } catch (e) { /* 通信できないときなどは手元の解説のまま */ }
 }
 
+/* ===== 記録の書き出し =====
+ * PC で分析するために、両方の問題集の記録を1行の JSON にまとめる（問題文・正解・手書きメモは入れない）。
+ * 開いていない問題集の記録も、その保存場所から直接読む。
+ *   { app: 'MM2026', v: 1, exported, books: [{ book, name,
+ *       sessions: [{ id, start, updated, answers: [章ごとの答えの数字列（0 は未回答）], unsure: ['章-問', …] }],
+ *       mocks:    [{ id, start, ended, elapsed（秒）, items: [['章-問', 答え, 自信なし 0/1, かけた秒数], …] }] }] }
+ */
+function exportRecords() {
+  const iso = ms => (ms ? new Date(ms).toISOString() : null);
+  const read = key => { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (e) { return {}; } };
+  const books = Object.entries(BOOKS).map(([id, b]) => {
+    const ch = b.chapters, at = (a, c, q) => (a && a[c] && a[c][q]) || 0;
+    const answers = s => ch.map((n, c) => Array.from({ length: n }, (_, q) => { const v = at(s.answers, c, q); return v >= 1 && v <= 4 ? v : 0; }).join(''));
+    const unsure = s => ch.flatMap((n, c) => Array.from({ length: n }, (_, q) => (at(s.unsure, c, q) ? `${c + 1}-${q + 1}` : null))).filter(Boolean);
+    const sessions = (read(`${b.store}-answers`).sessions || []).map(s => ({
+      id: s.id, start: iso(s.startedAt || s.createdAt), updated: iso(s.updatedAt), answers: answers(s), unsure: unsure(s) }));
+    const mocks = (read(`${b.store}-mock`).mocks || []).map(m => ({
+      id: m.id, start: iso(m.startedAt || m.createdAt), ended: iso(m.endedAt), elapsed: Math.round((m.elapsed || 0) / 1000),
+      items: (m.items || []).map(([c, q]) => [`${c + 1}-${q + 1}`, at(m.answers, c, q), at(m.unsure, c, q) ? 1 : 0, Math.round(at(m.times, c, q) / 1000)]) }));
+    return { book: Number(id), name: b.name, sessions, mocks };
+  });
+  return { text: JSON.stringify({ app: 'MM2026', v: 1, exported: iso(Date.now()), books }), books };
+}
+
 /* ===== 操作 ===== */
 const idOf = el => el.dataset.id || current.id;
 
@@ -2085,6 +2116,44 @@ const actions = {
     if (p) setPos(p.c, p.q);
   },
   closeSheet,
+  exportOpen() {
+    const { text, books } = exportRecords();
+    const sum = books.map(b => `${b.name} ${b.sessions.length}回・実戦形式 ${b.mocks.length}回`).join('、');
+    openSheet(`
+      <h2>記録を書き出す</h2>
+      <p>${sum}の記録を、文字にまとめました（問題文・正解・手書きメモは入りません）。コピーして PC に貼り付けるか、ファイルで保存してください。</p>
+      <textarea id="exportText" rows="4" readonly>${esc(text)}</textarea>
+      <div class="btns">
+        <button class="primary" data-act="exportCopy">コピーする</button>
+        <button data-act="exportShare">ファイルで保存・共有</button>
+        <button data-act="closeSheet">閉じる</button>
+      </div>`);
+  },
+  async exportCopy() {
+    const box = $('#exportText');
+    try {
+      await navigator.clipboard.writeText(box.value);
+      toast('コピーしました');
+    } catch (e) {
+      box.focus(); box.select();   // クリップボードを使えない開き方では、選んでコピーする
+      toast(document.execCommand('copy') ? 'コピーしました' : 'コピーできませんでした。欄の文字を長押ししてコピーしてください');
+    }
+  },
+  async exportShare() {
+    const d = new Date(), name = `MM2026-記録-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json`;
+    const file = new File([$('#exportText').value], name, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {   // iPhone は共有シートから「ファイルに保存」
+      try { await navigator.share({ files: [file] }); } catch (e) { /* やめたとき */ }
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
 };
 
 document.addEventListener('click', e => {
