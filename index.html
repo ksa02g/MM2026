@@ -393,6 +393,23 @@
   .extag.ng{background:var(--ng)}
   .exref{display:block; margin-top:2px; text-align:right; font-size:12px; color:var(--accent)}
   .exfoot{padding:10px 0 6px; font-size:12px; line-height:1.6; color:var(--faint)}
+
+  /* ---- 見直しノート（公式テキストを軸にした短い解説） ---- */
+  .note{padding:14px 16px 12px; margin-bottom:12px; font-size:15.5px; line-height:1.8}
+  .note-label{display:inline-block; margin-bottom:6px; padding:0 8px; border-radius:99px; font-size:11.5px; font-weight:700;
+              background:var(--accent-soft); color:var(--accent)}
+  .nt-head{display:flex; align-items:baseline; gap:10px; margin-bottom:4px}
+  .nt-head b{font-size:16px; line-height:1.5}
+  .nt-head span{margin-left:auto; flex:none; font-size:12px; color:var(--sub)}
+  .nt-p{margin:6px 0}
+  .nt-list{margin:6px 0; padding-left:1.3em}
+  .nt-list li{margin:3px 0}
+  .nt-red{color:var(--ng); font-weight:700}
+  .nt-table{font-size:13.5px}
+  .nt-fig{margin:10px 0 4px}
+  .nt-fig figcaption{font-size:13px; font-weight:700; margin-bottom:4px}
+  .nt-fig svg{display:block; width:100%; height:auto; overflow:visible}
+  .nt-q{display:block; margin:8px 0 0 auto; padding:6px 0 2px; font-size:13.5px; font-weight:600; color:var(--accent)}
   .expara{padding:12px 0}
   .exnote{margin:12px 0; padding:10px 12px; border-left:3px solid var(--accent); border-radius:0 10px 10px 0;
           background:var(--accent-soft)}
@@ -864,6 +881,7 @@ const ICON = {
   eraser: svg('<path d="M9 20h11"/><path d="M4.6 14.6l8.2-8.2a2 2 0 0 1 2.8 0l2.9 2.9a2 2 0 0 1 0 2.8L11 19.6H8.4l-3.8-3.8a.9.9 0 0 1 0-1.2z"/><path d="M8.5 10.7l5.2 5.2"/>'),
   undo: svg('<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
   timer: svg('<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5M12 2.5V6"/>'),
+  book: svg('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8 7.5h8M8 11h6"/>'),
 };
 const UB = '<i class="ub" aria-hidden="true">?</i>';   // 自信なしの印
 
@@ -919,6 +937,7 @@ let exPos = { c: 0, q: 0 };  // 解説画面で開いている問題
 function route() {
   const [kind, id, page, arg] = location.hash.replace(/^#\/?/, '').split('/');
   if (kind === 'key') return { view: 'key' };
+  if (kind === 'notes') return { view: 'notes' };
   return kind === 's' && id ? { id, view: page || 'hub', arg } : { view: 'home' };
 }
 
@@ -958,6 +977,7 @@ function render() {
   const r = route();
   document.documentElement.dataset.view = r.view;
   if (r.view === 'home') return renderHome();
+  if (r.view === 'notes') return renderNotes();
   if (r.view === 'key') {
     current = null;
     renderKey();
@@ -1011,6 +1031,11 @@ function renderHome() {
       <span class="ico">${ICON.timer}</span>
       <span><b>実戦形式で解く</b><small>${MOCK_N}問をランダムに出題・時間も計ります</small></span>
     </button>
+    ${noteCount() ? `
+    <button class="big alt" data-act="toNotes">
+      <span class="ico">${ICON.book}</span>
+      <span><b>見直しノート</b><small>間違えた・自信なしの問題を、公式テキストの正しい内容で（${noteCount()}件）</small></span>
+    </button>` : ''}
     <h2 class="sec">記録 <span class="pill num">${list.length}</span></h2>
     ${list.length ? list.map(sessionCard).join('')
       : '<div class="empty">まだ記録はありません。<br>「新しく解きはじめる」から始めましょう。</div>'}
@@ -1746,6 +1771,55 @@ const rich = s => esc(s).replace(/__(.+?)__/g, '<u>$1</u>');   // __語句__ は
 // 解説の「前の問題／次の問題」で進む順番。○付け画面の絞り込みに合わせる（実戦形式は出題した問題の中で）
 const exList = s => orderOf(s).filter(([c, q]) => inFilter(s, c, q, gradeFilter));
 
+/* ===== 見直しノート =====
+ * 間違えた・自信なしの問題について、公式テキストの該当箇所から作った短い解説（解説データの items['章-問'].note）。
+ *   note = { title, pages, found, kind（最新も× / 前に× / 自信なし）, body: [{type: p|list|table|figure, …}] }
+ * 文の中の [[…]] は赤い太字（間違えた所の正しい内容）、**…** は太字
+ */
+const noteRich = s => esc(s).replace(/\[\[(.+?)\]\]/g, '<b class="nt-red">$1</b>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+const noteCount = () => (EX ? Object.values(EX.items).filter(it => it.note).length : 0);
+// 図は解説データの中の SVG。念のため script・on○○・リンクは外す
+const safeSvg = svg => String(svg || '').replace(/<script[\s\S]*?<\/script>/gi, '')
+  .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, '').replace(/\s(?:xlink:)?href\s*=\s*("[^"]*"|'[^']*')/gi, '');
+
+function noteHTML(n) {
+  const pages = (n.pages || []).length ? `公式テキスト p.${n.pages.join('、')}` : '';
+  return `<div class="nt-head"><b>${esc(n.title)}</b><span>${pages}${n.found === false ? '（テキストで未確認）' : ''}</span></div>` +
+    (n.body || []).map(b =>
+      b.type === 'list' ? `<ul class="nt-list">${(b.items || []).map(x => `<li>${noteRich(x)}</li>`).join('')}</ul>`
+      : b.type === 'table' ? `<table class="pp-table nt-table">${b.title ? `<caption>${esc(b.title)}</caption>` : ''}${
+          b.head ? `<thead><tr>${b.head.map(x => `<th>${noteRich(x)}</th>`).join('')}</tr></thead>` : ''}<tbody>${
+          (b.rows || []).map(r => `<tr>${r.map(x => `<td>${noteRich(x)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+      : b.type === 'figure' ? `<figure class="nt-fig">${b.title ? `<figcaption>${esc(b.title)}</figcaption>` : ''}${safeSvg(b.svg)}</figure>`
+      : `<p class="nt-p">${noteRich(b.text)}</p>`).join('');
+}
+
+let noteFilter = 'all';
+const NOTE_KINDS = [['all', 'すべて'], ['最新も×', '最新も ×'], ['前に×', '前の回で ×'], ['自信なし', '自信なし']];
+
+// 公式テキストのページ順に並べる。各ノートから、その問題を解いた記録の解説へ
+function renderNotes() {
+  current = null;
+  const pg = n => (n.pages && n.pages.length ? Math.min(...n.pages) : 999);
+  const list = Object.entries(EX ? EX.items : {}).filter(([, it]) => it.note)
+    .map(([k, it]) => ({ k, n: it.note }))
+    .sort((a, b) => pg(a.n) - pg(b.n) || a.k.localeCompare(b.k, 'ja', { numeric: true }));
+  const chips = NOTE_KINDS.filter(([k]) => k === 'all' || list.some(x => x.n.kind === k));
+  if (!chips.some(([k]) => k === noteFilter)) noteFilter = 'all';
+  const shown = list.filter(x => noteFilter === 'all' || x.n.kind === noteFilter);
+  view.innerHTML = `
+    ${bar('見直しノート', `${BOOK.name} · ${list.length}件`)}
+    <div class="chips">
+      ${chips.map(([k, label]) => `<button class="chip num${noteFilter === k ? ' on' : ''}" data-act="filterNotes" data-f="${k}">${label} ${
+        k === 'all' ? list.length : list.filter(x => x.n.kind === k).length}</button>`).join('')}
+    </div>
+    <p class="hint">公式テキストのページ順です。<b class="nt-red">赤い太字</b>は、問題で間違えた所の正しい内容です。</p>
+    ${shown.map(x => {
+      const [c, q] = x.k.split('-');
+      return `<article class="card note">${noteHTML(x.n)}<button class="nt-q" data-act="noteQ" data-k="${x.k}">第${c}章 第${q}問の解説を開く ›</button></article>`;
+    }).join('') || '<div class="empty">該当するノートはありません。</div>'}`;
+}
+
 function renderEx(arg) {
   const m = /^(\d+)-(\d+)$/.exec(arg || ''), list = orderOf(current);
   const c = m ? Number(m[1]) - 1 : -1, q = m ? Number(m[2]) - 1 : -1;
@@ -1767,6 +1841,7 @@ function paintEx() {
       <div><small>正解</small><b class="num">${k || '－'}</b></div>
       <span class="exmark ${st}">${{ ok: '○ 正解', ng: '× 不正解', blank: '未回答', nokey: '' }[st]}</span>
     </section>
+    ${e && e.note ? `<section class="card note"><span class="note-label">見直しノート</span>${noteHTML(e.note)}</section>` : ''}
     ${questionOf(c, q) ? '<section class="card qcard" id="exQ"></section>' : ''}
     ${e ? `<article class="card exbody">${e.blocks.map(b => exBlock(b, k, v)).join('')}${BOOK_ID === 2
       ? '<p class="exfoot">公式テキストのページは、過去問題集の解説から推定したものです。(?) は確かさ 中、(??) は 低。'
@@ -2005,6 +2080,16 @@ const actions = {
     goBack(!s || r.view === 'hub' ? '#/' : !isMock(s) ? `#/s/${r.id}` : r.view === 'ex' ? `#/s/${r.id}/grade` : '#/');
   },
   toKey: () => nav('#/key'),
+  toNotes: () => nav('#/notes'),
+  filterNotes(el) { noteFilter = el.dataset.f; renderNotes(); },
+  // その問題を解いたいちばん新しい記録（終わった実戦形式・回答してある通常の回）の解説を開く
+  noteQ(el) {
+    const [c, q] = el.dataset.k.split('-').map(n => Number(n) - 1);
+    const s = db.sessions.filter(x => (isMock(x) ? !!x.endedAt : x.answers[c][q] > 0) && orderOf(x).some(([a, b]) => a === c && b === q))
+      .sort((a, b) => dateOf(b) - dateOf(a))[0];
+    if (!s) { toast('この問題を解いた記録がありません'); return; }
+    nav(`#/s/${s.id}/ex/${c + 1}-${q + 1}`);
+  },
   book(el) {
     const id = Number(el.dataset.book);
     if (id !== BOOK_ID && !switchBook(id)) toast('切り替えられませんでした（ブラウザに保存できません）');
