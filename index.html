@@ -1018,6 +1018,7 @@ function renderHome() {
   db.sessions = db.sessions.filter(s => answered(s) > 0);   // 何も答えずに戻った回は捨てる
   const byDate = (a, b) => dateOf(b) - dateOf(a);
   const list = db.sessions.filter(s => !isMock(s)).sort(byDate), mocks = db.sessions.filter(isMock).sort(byDate);
+  const nNotes = reviewNotes().length;
   view.innerHTML = `
     <header class="hero">
       <p class="eyebrow">メンタルヘルス・マネジメント検定</p>
@@ -1035,10 +1036,10 @@ function renderHome() {
       <span class="ico">${ICON.timer}</span>
       <span><b>実戦形式で解く</b><small>${MOCK_N}問をランダムに出題・時間も計ります</small></span>
     </button>
-    ${noteCount() ? `
+    ${nNotes ? `
     <button class="big alt" data-act="toNotes">
       <span class="ico">${ICON.book}</span>
-      <span><b>見直しノート</b><small>間違えた・自信なしの問題を、公式テキストの正しい内容で（${noteCount()}件）</small></span>
+      <span><b>見直しノート</b><small>間違えた・自信なしの問題を、公式テキストの正しい内容で（${nNotes}件）</small></span>
     </button>` : ''}
     <h2 class="sec">記録 <span class="pill num">${list.length}</span></h2>
     ${list.length ? list.map(sessionCard).join('')
@@ -1776,13 +1777,51 @@ const rich = s => esc(s).replace(/__(.+?)__/g, '<u>$1</u>');   // __語句__ は
 const exList = s => orderOf(s).filter(([c, q]) => inFilter(s, c, q, gradeFilter));
 
 /* ===== 見直しノート =====
- * 間違えた・自信なしの問題について、公式テキストの該当箇所から作った短い解説（解説データの items['章-問'].note）。
- *   note = { title, pages, found, kind（最新も× / 前に× / 自信なし）, v5, body: [{type: p|list|table|figure, …}] }
+ * 問題ごとに、公式テキストの該当箇所から作った短い解説（解説データの items['章-問'].note）。
+ *   note = { title, pages, found, v5, body: [{type: p|list|table|figure, …}] }
  *   v5: 'all' … 第5版の内容からの出題（最新の公式テキストにない。優先度低）、'part' … ノートの一部が第5版の内容
  * 文の中の [[…]] は赤い太字（間違えた所や、問題で変えられやすい所の正しい内容）、**…** は太字
+ * 一覧に出すのは、この端末の記録で間違えた・自信なしにした問題だけ（reviewKinds）。新しく解けば、すぐに一覧が変わる。
+ * 解説データの note.kind（PC で作ったときの分類）は使わない
  */
 const noteRich = s => esc(s).replace(/\[\[(.+?)\]\]/g, '<b class="nt-red">$1</b>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-const noteCount = () => (EX ? Object.values(EX.items).filter(it => it.note).length : 0);
+
+/* 見直しの分類を、この端末の記録（通常の回と実戦形式）から決める。PC の review/analyze.py と同じ決め方
+ *   最新も× … いちばん新しい解答が × か未回答
+ *   前に×   … 前に × か未回答だったが、いちばん新しい解答は ○
+ *   自信なし … いつも ○ だが、自信なしの印を付けたことがある
+ * 通常の回と途中の実戦形式は、答えたか自信なしの印を付けた問題だけを数える。終わった実戦形式は、答えなかった問題も × と数える
+ * 戻り値は Map('章-問' → 分類)。正解が登録されていない問題は分類しない
+ */
+function reviewKinds() {
+  const at = new Map();
+  for (const s of db.sessions) {
+    const ended = isMock(s) && !!s.endedAt;
+    for (const [c, q] of orderOf(s)) {
+      const v = s.answers[c][q], u = !!s.unsure[c][q];
+      if (!v && !u && !ended) continue;
+      const k = `${c + 1}-${q + 1}`;
+      if (!at.has(k)) at.set(k, []);
+      at.get(k).push([dateOf(s), v, u]);
+    }
+  }
+  const kinds = new Map();
+  for (const [k, list] of at) {
+    const [c, q] = k.split('-').map(n => Number(n) - 1), ans = KEY[c] ? KEY[c][q] : 0;
+    if (!ans) continue;
+    list.sort((a, b) => a[0] - b[0]);
+    const kind = list[list.length - 1][1] !== ans ? '最新も×' : list.some(a => a[1] !== ans) ? '前に×'
+      : list.some(a => a[2]) ? '自信なし' : '';
+    if (kind) kinds.set(k, kind);
+  }
+  return kinds;
+}
+// 見直しノートの一覧に出す問題 [{ k: '章-問', n: ノート, kind }]
+function reviewNotes() {
+  if (!EX) return [];
+  const kinds = reviewKinds();
+  return Object.entries(EX.items).filter(([k, it]) => it.note && kinds.has(k)).map(([k, it]) => ({ k, n: it.note, kind: kinds.get(k) }));
+}
 // 図は解説データの中の SVG。念のため script・on○○・リンクは外す
 const safeSvg = svg => String(svg || '').replace(/<script[\s\S]*?<\/script>/gi, '')
   .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi, '').replace(/\s(?:xlink:)?href\s*=\s*("[^"]*"|'[^']*')/gi, '');
@@ -1812,17 +1851,16 @@ function renderNotes() {
   current = null;
   const pg = n => (n.pages && n.pages.length ? Math.min(...n.pages) : 999);
   const low = n => (n.v5 === 'all' ? 1 : 0);                 // 第5版の内容からの出題は、最後にまとめる
-  const list = Object.entries(EX ? EX.items : {}).filter(([, it]) => it.note)
-    .map(([k, it]) => ({ k, n: it.note }))
+  const list = reviewNotes()
     .sort((a, b) => low(a.n) - low(b.n) || pg(a.n) - pg(b.n) || a.k.localeCompare(b.k, 'ja', { numeric: true }));
-  const chips = NOTE_KINDS.filter(([k]) => k === 'all' || list.some(x => x.n.kind === k));
+  const chips = NOTE_KINDS.filter(([k]) => k === 'all' || list.some(x => x.kind === k));
   if (!chips.some(([k]) => k === noteFilter)) noteFilter = 'all';
-  const shown = list.filter(x => noteFilter === 'all' || x.n.kind === noteFilter);
+  const shown = list.filter(x => noteFilter === 'all' || x.kind === noteFilter);
   view.innerHTML = `
     ${bar('見直しノート', `${BOOK.name} · ${list.length}件`)}
     <div class="chips">
       ${chips.map(([k, label]) => `<button class="chip num${noteFilter === k ? ' on' : ''}" data-act="filterNotes" data-f="${k}">${label} ${
-        k === 'all' ? list.length : list.filter(x => x.n.kind === k).length}</button>`).join('')}
+        k === 'all' ? list.length : list.filter(x => x.kind === k).length}</button>`).join('')}
     </div>
     <p class="hint">公式テキストのページ順です。<b class="nt-red">赤い太字</b>は、間違えた所や問題で変えられやすい所の正しい内容です。${
       list.some(x => low(x.n)) ? '第5版の内容からの出題（最新の公式テキストにない）は、最後にまとめています。' : ''}</p>
@@ -1830,7 +1868,7 @@ function renderNotes() {
       const [c, q] = x.k.split('-');
       const sec = low(x.n) && !(i && low(shown[i - 1].n)) ? '<h3 class="nt-sec">第5版の内容（最新の公式テキストにない・優先度低）</h3>' : '';
       return `${sec}<article class="card note">${noteHTML(x.n)}<button class="nt-q" data-act="noteQ" data-k="${x.k}">第${c}章 第${q}問の解説を開く ›</button></article>`;
-    }).join('') || '<div class="empty">該当するノートはありません。</div>'}`;
+    }).join('') || '<div class="empty">該当するノートはありません。<br>問題を間違えたり「自信なし」にしたりすると、ここに出ます。</div>'}`;
 }
 
 function renderEx(arg) {
